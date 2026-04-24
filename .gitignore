@@ -1,0 +1,22 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Data and analysis outputs
+data/*.csv
+data/*.xlsx
+outputs/
+*.log
+*.csv
+*.html
+
+# Editor settings
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
