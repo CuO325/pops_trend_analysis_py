@@ -606,7 +606,7 @@ for filename in filenames:
     print("\n--- 最終結果（テーブル形式） ---")
     print(df_results.to_string(index=False))
 
-    df_results.to_csv(f"{filename}_2025_reliable.csv", index=False, encoding='utf-8-sig')
+    df_results.to_csv(f"output/{filename}_2025_reliable.csv", index=False, encoding='utf-8-sig')
 
     # CSVファイルの読み込み
     #filename ="大気温暖期"
