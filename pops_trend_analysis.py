@@ -1,6 +1,6 @@
-# pops_idea_4_update_with_kde_bayes.py
+# 
 # --- 改良版：KDE尤度ベイズ(MCMC)を統合した実装 ---
-# 既存ファイルから差し替えるか、関数群を置き換えて使ってください。
+# pops_idea_7.py 2025/11/15
 
 import pandas as pd
 import matplotlib.pyplot as plt
