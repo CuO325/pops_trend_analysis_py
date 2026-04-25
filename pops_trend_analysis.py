@@ -479,7 +479,7 @@ def is_data_acceptable(a, p1, ci):
 ## メイン処理
 # ------------------------------------------------    
 # 処理対象ファイル名リスト
-filenames = ["生物"]
+filenames = ["HCB大気温暖期2013"]
 for filename in filenames:
     print(f"\n\n==================== ファイル処理開始: {filename} ====================")
 
@@ -750,7 +750,7 @@ for filename in filenames:
     df_results.to_csv(f"{filename}_2025_reliable.csv", index=False, encoding='utf-8-sig')
 
     # HTMLレポート作成
-    html_path = f"{filename}_regression_report_2024_01.html"
+    html_path = f"outputs/{filename}_regression_report_2024_01.html"
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(f"<html><head><meta charset='utf-8'><title>{filename} 回帰分析レポート</title></head><body>")
         f.write("<h1>回帰分析レポート</h1>")

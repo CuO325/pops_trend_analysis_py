@@ -224,7 +224,7 @@ furnished to do so, subject to the following conditions:
 
 - 出力ファイル：  
   ```
-  {filename}_regression_report_2024_01.html
+  outputs/{filename}_regression_report_2024_01.html
   ```
 - 内容  
   - 物質名  
@@ -355,7 +355,7 @@ pops_idea_7.py の最大の特徴は、
 ### 🔹 保存先
 
 ```
-plots_regression/{substance}_{filename}_regression.png
+outputs/plots_regression/{substance}_{filename}_regression.png
 ```
 
 ### 🔹 HTML レポート
@@ -389,5 +389,4 @@ plots_regression/{substance}_{filename}_regression.png
 - コード構造  
 - 実務での運用性  
 
-*pops_idea_7.py* は、これまでの全バージョンの集大成であり、  
-**「実務レベル → 論文レベル」へ進化した完成版** です。
+*pops_idea_7.py* は、pops_trend_analysis.py とする。
