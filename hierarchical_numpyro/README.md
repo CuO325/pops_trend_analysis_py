@@ -5,6 +5,46 @@
 # 📄 **README.md　**
 
 ```markdown
+# Hierarchical Student-t Regression with NumPyro
+Robust Multi‑Site Trend Analysis for Environmental and QSAR Data
+**多地点・多物質モニタリングデータのための頑健な階層ベイズモデル**
+
+このディレクトリには、NumPyro (NUTS) を用いた高機能な階層ベイズ回帰モデルの実装が含まれています。環境モニタリングデータやQSAR（定量的構造活性相関）など、地点やカテゴリごとに繰り返し測定が行われるデータのトレンド分析に最適化されています。
+
+## ✨ 主な特徴と技術的仕様
+
+このスクリプトは、単一地点の回帰分析では困難な「データが少ない地点の推定」を階層構造によって補完（部分プール）し、高い精度と安定性を両立しています。
+
+- **階層モデル（マルチレベル回帰）**: 各地点に個別の傾きと切片を割り当てつつ、全体の母平均からサンプリングすることで「縮小推定」を実現。
+- **非中心化パラメータ化 (Non-centered Parameterization)**: パラメータ間の相関によるサンプリングの停滞を防ぎ、複雑な階層構造でも高速かつ安定して収束します。
+- **Student-t分布によるロバスト推定**: 観測データの誤差分布に正規分布ではなく Student-t 分布を採用。外れ値の影響を受けにくい、頑健なトレンド推定が可能です。
+- **自動レポート生成**: 各地点ごとの推定値、95%信用区間、半減期（または倍加時間）、収束診断（R-hat）を CSV/JSON 形式で出力します。
+
+## 🚀 使い方
+
+### 1. データの準備
+`data/` ディレクトリに、地点名（サイトID）、年度、濃度値を含む CSV ファイルを配置します。
+
+### 2. 設定の変更
+`pops_hierarchical_numpyro.py` 冒頭の変数で対象物質や閾値を指定します：
+- `filenames`: 対象のファイル名
+- `substance_data`: 特定の物質に絞る場合はリストに指定
+- `MIN_OBS_FOR_SITE`: サイトごとに最低限必要なデータ数
+
+### 3. 実行
+```bash
+python pops_hierarchical_numpyro.py
+
+📊 出力される成果物
+実行後、outputs/（または指定ディレクトリ）に以下が生成されます。
+
+サイト別サマリー (CSV): 地点ごとの傾向判定（上昇・減少の確率）、推定された傾き、信頼区間。
+
+全体統計 (JSON): モデル全体のハイパーパラメータ（μ, σ）やベイズ決定係数（R²）。
+
+事後予測プロット: 実測値とモデルの予測区間を重ね合わせた可視化グラフ。
+
+
 # Hierarchical Student‑t Regression with NumPyro  
 Robust Multi‑Site Trend Analysis for Environmental and QSAR Data
 
