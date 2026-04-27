@@ -1,3 +1,6 @@
 **/__pycache__/
 #outputs/
+hierarchical_numpyro/old/
+archive/
+experimental/
 *.log
