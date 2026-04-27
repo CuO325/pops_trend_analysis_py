@@ -45,7 +45,7 @@ python pops_hierarchical_numpyro.py
 事後予測プロット: 実測値とモデルの予測区間を重ね合わせた可視化グラフ。
 
 
-# Hierarchical Student‑t Regression with NumPyro  
+# Hierarchical Student‑t Regression with NumPyro  （English)
 Robust Multi‑Site Trend Analysis for Environmental and QSAR Data
 
 This repository provides a high‑performance hierarchical Bayesian regression model implemented in **NumPyro** (NUTS/HMC).  
