@@ -30,27 +30,48 @@
 
 ---
 
+## 📌 **分析フェーズ別の手法の概要**
 
-分析のフェーズに応じて、以下の3つのスクリプトを使い分けます。
+### **Phase 1：KDE-MLE（点推定 / AIC によるモデル比較）**  
+**目的**：環境省 POP モニタリング手法（1. 最尤推定）に相当  
+**特徴**：  
+- 残差分布を KDE で非パラメトリック推定  
+- KDE を尤度として線形モデル (a,b) を最尤推定  
+- 0 次式との AIC 比較  
+**対応スクリプト**： 
+- `pops_trend_analysis.py` 
+- `pops_fft_kde_analysis.py`  
 
-KDE-MLE（点推定） （環境省POPモニタリングの経年変化の解析手法, 1.最尤推定（MLE / AIC））
-   ↓
-emcee（a,b のベイズ推定） pops_trend_analysis.py, pops_fft_kde_analysis.py, pops_bayes_fastfft_loo_v01.py 2.ベイズ推定（MCMC / FFT-KDE尤度）
-   ↓
-NumPyro（階層ベイズ + Student-t）(Hierarchical Student-t_emcee.py, pops_hierarchical_numpyro.py)
+**備考**：設定（不検出処理・バンド幅）が異なるため、公表値とは一致しない
 
+---
 
-## 実行スクリプトの使い分け
+### **Phase 2：emcee（a,b のベイズ推定 / FFT-KDE 尤度）**  
+**目的**：KDE-MLE をベイズ化し、不確実性を評価  
+**特徴**：  
+- KDE を固定したまま a,b の事後分布を MCMC で推定  
+- FFT-KDE による高速化バージョンも実装  
+- p(a<0) などの確率的評価が可能  
+**対応スクリプト**：  
+- `pops_trend_analysis.py`  
+- `pops_fft_kde_analysis.py`  
+- `pops_bayes_fastfft_loo_v01.py`
 
-| ファイル名 | 役割 | 特徴 |
-|:---|:---|:---|
-| `pops_trend_analysis.py` | **理論検証用のMCMC** | 単一の時系列に対するベイズ推論。モデルのプロトタイプ作成や基本設定の検証に使用。とても遅いです。 |
-| `pops_fft_kde_analysis.py` | **運用・レポート用の高速FFT-KDE** | FFT-KDEを用いた高速近似モデル。多数の物質のレポートを短時間で出す際に活用。まずはこれを実施してください。 |
+---
 
-| `pops_hierarchical_numpyro.py` | **階層ベイズ分析** | カテゴリ間や地域間の共通性を考慮した階層モデル。POPsモニタリングの場合の1次減衰の原則が妥当とすれば、データ不足地点の推定が可能です。同名の独立ホルダーに保存。 |
+### **Phase 3：NumPyro（階層ベイズ + Student-t）**  
+**目的**：複数サイトの情報を統合し、完全な階層ベイズモデルでトレンドを推定  
+**特徴**：  
+- 階層構造（部分プーリング）  
+- Student-t 誤差（外れ値に強い）  
+- 予測分布・LOO・Bayesian R² など完全なベイズ解析  
+**対応スクリプト**：  
+- `Hierarchical Student-t_emcee.py`  
+- `pops_hierarchical_numpyro.py`
 
+---
 
-## ディレクトリ構造
+## main ディレクトリ構造
 - `analysis/`: importモジュール
 - `data/`: 解析対象の生データ
 - `outputs/`: スクリプトの実行結果（統計量など, 形式：csv、html など）
@@ -61,7 +82,7 @@ NumPyro（階層ベイズ + Student-t）(Hierarchical Student-t_emcee.py, pops_h
 
 ## 今後の展望
 - 階層モデルの精度向上に向けた事前分布の微調整。
-- FFT-KDEによる近似と階層ベイズモデルの推定結果の乖離チェック（バリデーション）。
+- 階層モデルのQSARへの適用
 
 ## 更新履歴
 - **階層モデルの統合**: 多階層分析用の `pops_hierarchical_numpyro.py` を追加。
