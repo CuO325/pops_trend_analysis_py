@@ -8,6 +8,13 @@
 階層ベイズモデルを中心とした、高度なトレンド分析プロジェクトです。
 分析のフェーズに応じて、以下の3つのスクリプトを使い分けます。
 
+KDE-MLE（点推定） （環境省POPモニタリングの経年変化の解析手法, 1.最尤推定（MLE / AIC）, 3.ブートストラップ検定, 4.二項ロジスティック回帰,）
+   ↓
+emcee（a,b のベイズ推定） pops_trend_analysis.py, pops_fft_kde_analysis.py, pops_bayes_fastfft_loo_v01.py 2.ベイズ推定（MCMC / FFT-KDE尤度）
+   ↓
+NumPyro（階層ベイズ + Student-t）(Hierarchical Student-t_emcee.py, pops_hierarchical_numpyro.py)
+
+
 ## 実行スクリプトの使い分け
 
 | ファイル名 | 役割 | 特徴 |
