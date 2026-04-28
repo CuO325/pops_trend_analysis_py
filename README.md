@@ -420,4 +420,4 @@ outputs/plots_regression/{substance}_{filename}_regression.png
 - コード構造  
 - 実務での運用性  
 
-*pops_idea_7.py* は、pops_trend_analysis.py とする。
+*pops_idea_7.py* を　pops_trend_analysis.py と rename した。
