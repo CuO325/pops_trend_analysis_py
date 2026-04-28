@@ -479,7 +479,8 @@ def is_data_acceptable(a, p1, ci):
 ## メイン処理
 # ------------------------------------------------    
 # 処理対象ファイル名リスト
-filenames = ["HCB大気温暖期2013"]
+#filenames = ["HCB大気温暖期2013"]
+filenames = ["PFOS大気温暖期"]
 for filename in filenames:
     print(f"\n\n==================== ファイル処理開始: {filename} ====================")
 
