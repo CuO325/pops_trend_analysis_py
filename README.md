@@ -421,3 +421,15 @@ outputs/plots_regression/{substance}_{filename}_regression.png
 - 実務での運用性  
 
 *pops_idea_7.py* を　pops_trend_analysis.py と rename した。
+
+---
+
+# pops_bayes_fastfft_loo_v01.py 
+ pops_fft_kde_analysis.py（旧 pops_final_test2.py）と「FFT-KDEによる高速ベイズ」という核となるエンジンは同じですが、
+
+1. モデル比較機能（事後確率 pM1の算出）
+「1次式モデル（トレンドあり）」と「0次式モデル（トレンドなし）」を比較し、そのエビデンスの強さを pM1 という事後確率で出力します。
+2. LOO（Leave-One-Out）交差検証の導入
+内容: データを一つずつ除いてモデルを再評価するようなプロセスを経て、モデルの汎化性能（未知のデータに対する予測力）をチェックします。
+3. Bootstrap法との併用
+ベイズ推定だけでなく、ブートストラップ法（再サンプリング法）による推定も同時に行い、レポートに出力しています。
