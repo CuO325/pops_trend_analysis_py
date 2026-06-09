@@ -20,7 +20,7 @@ MCMC（emcee, NumPyro）を用いた階層ベイズモデル、カーネル密�
 | `PY_ti_fft_kde_regression` | 高速フーリエ変換（FFT）とKDEを組み合わせた時系列回帰分析 |
 | `ST_BREAK_POINTs` | 【Streamlitアプリ】時系列データにおける構造変化点（ブレイクポイント）の検出 |
 | `ST_SARIMA_prediction` | 【Streamlitアプリ】SARIMAモデルを用いた時系列データの将来予測 |
-| `ST_ti_fft_kde_regression` | 【Streamlitアプリ】FFT・KDEを用いた時系列回帰分析（TI: ※ここに正式名称を入れる を実装） |
+| `ST_ti_fft_kde_regression` | 【Streamlitアプリ】FFT・KDEを用いた時系列回帰分析（TI: Thermodynamic Integration 実装） |
 
 ## 🛠 必須環境・ライブラリ
 
