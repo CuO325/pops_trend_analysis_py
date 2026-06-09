@@ -1,6 +1,59 @@
-**/__pycache__/
-#outputs/
-hierarchical_numpyro/old/
+#git rm -r --cached .
+#git add .
+
+#ステージされている D（削除）の件数
+#git diff --cached --name-status | Select-String "^D" | Measure-Object | Select-Object -ExpandProperty Count
+
+#種類別の一覧を見る（A / M / D）
+#git diff --cached --name-status
+
+
+# -------------------------
+# Python キャッシュ・環境
+# -------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+.venv*/
+*.egg-info/
+
+# -------------------------
+# ログ・一時ファイル
+# -------------------------
+*.log
+*.tmp
+*.bak
+
+# -------------------------
+# 自動生成ファイル（HTML, CSV, JSON）
+# -------------------------
+*.html
+*.csv
+*.json
+*.xlsx
+*.png
+*.ipynb
+
+# -------------------------
+# プロジェクト固有のフォルダー
+# -------------------------
+outputs/
 archive/
 experimental/
-*.log
+experiment/
+trash/
+hierarchical_numpyro/old/
+modeles/
+#analysis/
+**/old/
+**/output/
+**/outputs/
+**/data/
+# -------------------------
+# OS 依存ファイル
+# -------------------------
+.DS_Store
+Thumbs.db

@@ -1,0 +1,92 @@
+import numpyro
+import numpyro.distributions as dist
+from numpyro.infer import MCMC, NUTS
+import jax.numpy as jnp
+import numpy as np
+import jax.random as random
+
+
+
+def breakpoint1_model(x, y):
+    x_min, x_max = x.min(), x.max()
+    alpha = numpyro.sample("alpha", dist.Normal(0, 5))
+    beta1 = numpyro.sample("beta1", dist.Normal(0, 5))
+    beta2 = numpyro.sample("beta2", dist.Normal(0, 5))
+    tau_raw = numpyro.sample("tau_raw", dist.Normal(0, 1))
+    tau = x_min + (x_max - x_min) * jnp.exp(tau_raw) / (1 + jnp.exp(tau_raw))
+    numpyro.deterministic("tau", tau)
+    sigma = numpyro.sample("sigma", dist.Exponential(1.0))
+    h = jnp.maximum(0, x - tau)
+    mu = alpha + beta1 * x + beta2 * h
+    numpyro.sample("obs", dist.Normal(mu, sigma), obs=y)
+
+def run_breakpoint1_mcmc(x, y, num_warmup=1000, num_samples=2000):
+    kernel = NUTS(breakpoint1_model)
+    mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples)
+    mcmc.run(random.PRNGKey(0), x=x, y=y)
+    #mcmc.run(numpyro.random.PRNGKey(0), x=x, y=y)
+    return mcmc
+
+def breakpoint2_model(x, y):
+    x_min, x_max = x.min(), x.max()
+    alpha = numpyro.sample("alpha", dist.Normal(0, 5))
+    beta1 = numpyro.sample("beta1", dist.Normal(0, 5))
+    beta2 = numpyro.sample("beta2", dist.Normal(0, 5))
+    beta3 = numpyro.sample("beta3", dist.Normal(0, 5))
+    tau1 = numpyro.sample("tau1", dist.Uniform(x_min, x_max))
+    tau2 = numpyro.sample("tau2", dist.Uniform(tau1, x_max))
+    sigma = numpyro.sample("sigma", dist.Exponential(1.0))
+    h1 = jnp.maximum(0, x - tau1)
+    h2 = jnp.maximum(0, x - tau2)
+    mu = alpha + beta1 * x + beta2 * h1 + beta3 * h2
+    numpyro.sample("obs", dist.Normal(mu, sigma), obs=y)
+
+def run_breakpoint2_mcmc(x, y, num_warmup=1000, num_samples=2000):
+    kernel = NUTS(breakpoint2_model)
+    mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples)
+    mcmc.run(random.PRNGKey(1), x=x, y=y)
+    #mcmc.run(numpyro.random.PRNGKey(1), x=x, y=y)
+    return mcmc
+
+def plot_posterior_trend(x, y, samples):
+    alpha = samples["alpha"]
+    beta1 = samples["beta1"]
+    beta2 = samples["beta2"]
+    tau = samples["tau"]
+
+    mu_samples = []
+    for a, b1, b2, t in zip(alpha, beta1, beta2, tau):
+        h = np.maximum(0, x - t)
+        mu_samples.append(a + b1 * x + b2 * h)
+
+    mu_samples = np.array(mu_samples)
+    mu_mean = mu_samples.mean(axis=0)
+
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.plot(x, y, "o", markersize=3)
+    ax.plot(x, mu_mean, color="red")
+    return fig
+
+def plot_posterior_trend_2break(x, y, samples):
+    alpha = samples["alpha"]
+    beta1 = samples["beta1"]
+    beta2 = samples["beta2"]
+    beta3 = samples["beta3"]
+    tau1 = samples["tau1"]
+    tau2 = samples["tau2"]
+
+    mu_samples = []
+    for a, b1, b2, b3, t1, t2 in zip(alpha, beta1, beta2, beta3, tau1, tau2):
+        h1 = np.maximum(0, x - t1)
+        h2 = np.maximum(0, x - t2)
+        mu_samples.append(a + b1 * x + b2 * h1 + b3 * h2)
+
+    mu_samples = np.array(mu_samples)
+    mu_mean = mu_samples.mean(axis=0)
+
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.plot(x, y, "o", markersize=3)
+    ax.plot(x, mu_mean, color="blue")
+    return fig
