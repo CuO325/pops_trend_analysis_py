@@ -40,14 +40,14 @@ env/
 # -------------------------
 # プロジェクト固有のフォルダー
 # -------------------------
+analysis/
+models/
 outputs/
 archive/
 experimental/
 experiment/
 trash/
 hierarchical_numpyro/old/
-modeles/
-#analysis/
 **/old/
 **/output/
 **/outputs/
