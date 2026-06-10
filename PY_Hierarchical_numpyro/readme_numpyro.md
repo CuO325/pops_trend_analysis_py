@@ -1,7 +1,5 @@
 ---
 
-# README.md
-
 ```markdown
 # Hierarchical Student‑t Regression with NumPyro (NUTS)
 ### Robust Bayesian Trend Estimation for Multi‑Site Environmental Monitoring  
@@ -200,8 +198,156 @@ furnished to do so, subject to the following conditions:
 ## 🙌 Acknowledgements
 - NumPyro & JAX developers  
 - Environmental monitoring researchers  
-- Bayesian modeling community  
+- Bayesian modeling community   
 
 ```
+
+---
+# NumPyro を用いた階層的スチューデントの t 検定回帰 (NUTS)  
+### 多地点環境モニタリングのためのロバストなベイズ的傾向推定  
+バージョン: pops_hierarchical_numpyro.py
+
+このリポジトリは、**NumPyro + NUTS** を使用して、**Student-t 尤度** に基づく **階層的ベイズ回帰モデル** を実装しています。  
+これは、各観測地点が独自の傾きと切片を持ちつつ、階層的なハイパーパラメータを共有する **多地点 POPs (残留性有機汚染物質) モニタリング** 向けに設計されています。
+
+このNumPyroバージョンは、大規模なデータセットに対しても、**高性能なHMCサンプリング**、**自動微分**、および**ロバストな推論**を提供します。  
+  
+---  
+  
+## ✨ 主な機能  
+  
+### **1. 階層的スチューデントt回帰（非中心化）**  
+各観測地点 \(i\) について：
+
+\[
+y_{i,t} = a_i x_{i,t} + b_i + \epsilon_{i,t}, \quad 
+\epsilon_{i,t} \sim t_{\nu}(0, \sigma)
+\]
+
+階層的事前分布：
+\[
+a_i = \mu_a + \sigma_a \cdot a_{i,\text{raw}}, \quad 
+b_i = \mu_b + \sigma_b \cdot b_{i,\text{raw}}
+\]
+
+グローバルパラメータ：
+- \( \mu_a, \sigma_a \) — 傾きの階層的平均およびスケール  
+- \( \mu_b, \sigma_b \) — 切片の階層的平均およびスケール  
+- \( \nu \) — 自由度（ヘビーテールの制御）  
+- \( \sigma \) — 観測ノイズ  
+
+安定したサンプリングのために**非中心化パラメータ化**を採用。
+
+---
+
+## **2. NumPyro による高性能推論**
+- **NUTS (No‑U‑Turn Sampler)**  
+- JAX による HMC 加速  
+- 自動微分  
+- マルチチェーン並列サンプリング  
+- 高次元階層モデルでも高速に収束  
+
+emceeとの比較：
+- 大規模データセットでは大幅に**高速**  
+- **幾何学的特性に配慮した探索**が優れている  
+- **正確なHMC診断情報**（発散度、ESS、R-hat）を提供  
+
+---
+
+## **3. データクリーニングと前処理**  
+以下の処理を標準でサポート：  
+- 検出されないデータ（`ND`、`tr()`、`---`）  
+- DL/√2 を用いた置換  
+- Log10 変換  
+- サイトフィルタリング：  
+  - 観測値の最小数  
+  - 終了年の最小値  
+  - 分析対象年の範囲  
+
+---
+
+## **4. 事後分布の要約**
+グローバルパラメータ：
+- 事後平均、標準偏差、95% 信頼区間  
+- 正/負の傾きの事後確率  
+- 自由度 \( \nu \)  
+- 観測値のノイズ \( \sigma \)  
+
+サイトレベルのパラメータ：
+- 勾配／切片の事後平均および信頼区間
+- 勾配が 0 より大きい事後確率
+- サイトごとのベイズ R²
+- 半減期の推定（必要な場合）
+
+---
+
+## **5. 事後予測分布**
+含まれる関数：
+- `posterior_predictive_intervals()`  
+- `plot_posterior_predictive_facet()`  
+
+出力:
+- 予測値の中央値  
+- 95% 信頼区間  
+- 事後適合値の平均  
+- 全サイトにわたるファセットプロット  
+
+---
+
+## **6. 出力構造**
+スクリプトは以下を生成します:
+```
+results/
+    ├── site_summary.csv
+    ├── global_summary.json
+    ├── predictive_plots/
+    └── facet_plots/
+```
+
+---
+
+## 📁 入力データの形式
+
+想定される列:
+
+| 列 | 意味 |
+|--------|---------|
+| `substance` | 化学物質名 |
+| `year` | 観測年 |
+| `site_id` | サイト識別子 |
+| `concentration` | 測定濃度 |
+| `detection_limit` | 検出限界 |
+
+例:
+```csv
+substance,year,site_id,concentration,detection_limit
+PCB-118,2010,A01,0.12,0.05
+PCB-118,2011,A01,0.10,0.05
+PCB-118,2010,B03,0.03,0.02
+```
+
+---
+
+## 🚀 実行方法
+
+### 1. データの準備
+CSVファイルを以下の場所に配置してください:
+```
+data/<filename>.csv
+```
+
+### 2. 設定の構成
+編集:
+```python
+filenames = ["水質"]
+substance_data = ["総PCB"]
+```
+
+### 3. スクリプトの実行
+```bash
+python pops_hierarchical_numpyro.py
+```
+
+### 4. 出力結果は自動的に保存されます。
 
 ---
