@@ -188,35 +188,48 @@ def binomial_trend_analyze(df):
 
     unified_dl = df['detection_limit'].max()
     df['low_flag'] = (df['concentration'] < unified_dl).astype(int)
+    
+    # 年ごとに「ND数 (low_count)」と「NDでない数 (not_low_count)」を集計
     yearly_data = df.groupby('year').agg(
         low_count=('low_flag', 'sum'),
         total_count=('low_flag', 'count')
     ).reset_index()
+    
+    # NDでない数（非ND数）を算出
+    yearly_data['not_low_count'] = yearly_data['total_count'] - yearly_data['low_count']
+    
     x_year = yearly_data['year'].astype(float).to_numpy()
     X1 = sm.add_constant(x_year).astype(float)
-    low_count = yearly_data['low_count'].astype(float).to_numpy()
-    total_count = yearly_data['total_count'].astype(float).to_numpy()
-    with np.errstate(divide='ignore', invalid='ignore'):
-        y_ratio = np.where(total_count > 0, low_count / total_count, np.nan)
-    n_weights = total_count
-    valid_mask = (~np.isnan(y_ratio)) & (~np.isnan(X1).any(axis=1)) & (~np.isnan(n_weights)) & (n_weights > 0)
+    
+    # 応答変数を [ND数, 非ND数] の2列行列を作成
+    y_binomial = yearly_data[['low_count', 'not_low_count']].to_numpy().astype(float)
+    
+    # 有効なデータ（全試行数が0でない行）のフィルタリング
+    valid_mask = (yearly_data['total_count'] > 0) & (~np.isnan(X1).any(axis=1))
     X1 = X1[valid_mask]
-    y_ratio = y_ratio[valid_mask]
-    n_weights = n_weights[valid_mask]
-    X0 = np.ones((len(y_ratio), 1), dtype=float)
+    y_binomial = y_binomial[valid_mask]
+    
+    X0 = np.ones((len(y_binomial), 1), dtype=float)
+    
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always", category=PerfectSeparationWarning)
-        model1 = sm.GLM(y_ratio, X1, family=sm.families.Binomial())
-        model1_fit = model1.fit(freq_weights=n_weights)
+        
+        # freq_weights を使わず、y に 2列の行列を渡す
+        model1 = sm.GLM(y_binomial, X1, family=sm.families.Binomial())
+        model1_fit = model1.fit()
         aic1 = model1_fit.aic
-        model0 = sm.GLM(y_ratio, X0, family=sm.families.Binomial())
-        model0_fit = model0.fit(freq_weights=n_weights)
+        
+        model0 = sm.GLM(y_binomial, X0, family=sm.families.Binomial())
+        model0_fit = model0.fit()
         aic0 = model0_fit.aic
+        
     delta_aic = aic1 - aic0
     numerator = np.exp(-0.5 * delta_aic)
     p1 = numerator / (1 + numerator)
     slope = model1_fit.params[1] if len(model1_fit.params) > 1 else np.nan
+    
     return aic0, aic1, p1, slope
+
 # ---------------------------
 # メイン処理（）
 # ----------------
