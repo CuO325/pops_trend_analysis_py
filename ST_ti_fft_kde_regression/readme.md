@@ -1,6 +1,39 @@
  
 **FFT‑KDE Bayesian Regression + Thermodynamic Integration (TI) Streamlit GUI** は、 POPs 時系列解析ツール群の中でも **最も総合的で、統計手法
 
+
+
+# 📊 ベイズ傾向分析 Web GUI App (Bayesian Trend Analysis)
+
+化学物質などの環境データ（濃度・不検出データ含む）に対して、最小二乗法 (OLS)、最大尤度推定 (MLE)、および FFT-KDE ベイズ推定を用いた傾向分析をブラウザ上で行える Streamlit アプリケーションです。
+
+---
+
+## 🌟 主な機能
+
+1. **データ処理・不検出対応**
+   - 不検出（ND）データを自動判定し、検出限界（$DL$）の $\frac{DL}{\sqrt{2}}$ で自動置換して対数変換 ($\log_{10}$) を行います。
+2. **複数の解析手法**
+   - **OLS**（普通最小二乗法）
+   - **MLE + AIC**（環境省の標準手法等に基づく最大尤度推定）
+   - **FFT-KDE ベイズ推定**（高速フーリエ変換・核密度推定を活用した MCMC 解析）
+   - **熱力学積分 (TI)**（モデル選択・統計的検証用）
+3. **可視化とレポート出力**
+   - 解析結果の HTML レポート自動出力
+   - 傾き（$a$）や切片（$b$）の後験分布（ヒストグラム、Corner plot、Joint posterior plot）の描画
+
+---
+
+## 🚀 起動方法
+
+### 1. 必要なライブラリのインストール
+事前に関連ライブラリ（`streamlit`, `pandas`, `numpy`, `matplotlib`, `seaborn`, `corner` など）をインストールしてください。
+
+### 2. アプリの起動
+ターミナル（コマンドプロンプト）で以下のコマンドを実行します。
+
+```bash
+streamlit run ST_POPs_MOE_ti_fft_kde_regression_v1full.py
 ---
 
 # README.md（英語）
