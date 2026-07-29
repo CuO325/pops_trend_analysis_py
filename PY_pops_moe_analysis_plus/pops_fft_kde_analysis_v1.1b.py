@@ -52,8 +52,69 @@ import numpy as np
 import statsmodels.api as sm
 import warnings
 from statsmodels.tools.sm_exceptions import PerfectSeparationWarning
+def binomial_trend_analyze(df, flag_col=None):
+    """
+    二項ロジスティック回帰分析を行う関数
+    - flag_col が指定されていればその列(0/1)を使用
+    - 指定がなければ detection_limit と concentration から判定
+    """
+    df_work = df.copy()
+    
+    # 1. 0/1 フラグ列の確定
+    if flag_col is not None and flag_col in df_work.columns:
+        df_work['low_flag'] = df_work[flag_col].astype(int)
+    elif 'low_flag' in df_work.columns:
+        pass # すでに low_flag があればそのまま使用
+    elif 'binary' in df_work.columns:
+        df_work['low_flag'] = df_work['binary'].astype(int)
+    elif 'detection_limit' in df_work.columns and 'concentration' in df_work.columns:
+        unified_dl = df_work['detection_limit'].max()
+        df_work['low_flag'] = (df_work['concentration'] < unified_dl).astype(int)
+    else:
+        raise KeyError("二項化に必要な列 ('low_flag', 'binary', または 'detection_limit'/'concentration') が見つかりません。")
 
-def binomial_trend_analyze(df):
+    # 2. 年ごとに「フラグ(1)の数 (low_count)」と「フラグ(0)の数 (not_low_count)」を集計
+    yearly_data = df_work.groupby('year').agg(
+        low_count=('low_flag', 'sum'),
+        total_count=('low_flag', 'count')
+    ).reset_index()
+    
+    yearly_data['not_low_count'] = yearly_data['total_count'] - yearly_data['low_count']
+    
+    x_year = yearly_data['year'].astype(float).to_numpy()
+    X1 = sm.add_constant(x_year).astype(float)
+    
+    # 応答変数を [成功数(1), 失敗数(0)] の2列行列として作成
+    y_binomial = yearly_data[['low_count', 'not_low_count']].to_numpy().astype(float)
+    
+    # 有効データのフィルタリング
+    valid_mask = (yearly_data['total_count'] > 0) & (~np.isnan(X1).any(axis=1))
+    X1 = X1[valid_mask]
+    y_binomial = y_binomial[valid_mask]
+    
+    if len(y_binomial) == 0:
+        return np.nan, np.nan, np.nan, np.nan
+
+    X0 = np.ones((len(y_binomial), 1), dtype=float)
+    
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always", category=PerfectSeparationWarning)
+        
+        model1 = sm.GLM(y_binomial, X1, family=sm.families.Binomial())
+        model1_fit = model1.fit()
+        aic1 = model1_fit.aic
+        
+        model0 = sm.GLM(y_binomial, X0, family=sm.families.Binomial())
+        model0_fit = model0.fit()
+        aic0 = model0_fit.aic
+        
+    delta_aic = aic1 - aic0
+    numerator = np.exp(-0.5 * delta_aic)
+    p1 = numerator / (1 + numerator)
+    slope = model1_fit.params[1] if len(model1_fit.params) > 1 else np.nan
+    
+    return aic0, aic1, p1, slope
+def binomial_trend_analyze_ogood(df):
 
     unified_dl = df['detection_limit'].max()
     df['low_flag'] = (df['concentration'] < unified_dl).astype(int)
@@ -1024,7 +1085,7 @@ if __name__ == "__main__":
             try:
                 print("\n--- 4. 二項ロジスティック回帰モデル ---")
                 df_binomial = df[['year', 'concentration', 'detection_limit']].copy()
-                aic0_bin, aic1_bin, p1_bin, a_bin = binomial_trend_analyze_old(df_binomial)
+                aic0_bin, aic1_bin, p1_bin, a_bin = binomial_trend_analyze(df_binomial)
                 print(f"傾き a = {a_bin:.4f}, オッズ比 ≈ {math.exp(a_bin):.4f}, AIC事後確率 p1 = {p1_bin:.3f}")
                 trend_bin = f"統一下限値 {max(df_binomial[ 'detection_limit'])} 以下の増加傾向あり" if p1_bin >= 0.95 else  f"統一下限値 {max(df_binomial[ 'detection_limit'])} 以下で傾向なし"
                 print(f"→ {trend_bin}")
@@ -1033,50 +1094,42 @@ if __name__ == "__main__":
                 trend_bin = "エラー"
                 a_bin, p1_bin = np.nan, np.nan
 
+             # ------------ 変数の事前初期化 ------------
+            a_dl, p1_dl = np.nan, np.nan
+            a_q25, p1_q25 = np.nan, np.nan
+            a_q75, p1_q75 = np.nan, np.nan
 
+            # 1. DL閾値での二項回帰実行
+            if 'detection_limit' in df.columns and not df['detection_limit'].dropna().empty:
+                try:
+                    threshold_dl = df['detection_limit'].max()
+                    df_dl = df[['year', 'concentration']].copy()
+                    df_dl['binary'] = (df['concentration'] < threshold_dl).astype(int)
 
-            # 閾値の定義
-            threshold_dl = df['detection_limit'].max()       # 最高検出下限値
-            threshold_q25 = df['concentration'].quantile(0.25)  # 25%タイル
-            threshold_q75 = df['concentration'].quantile(0.75)  # 75%タイル
-            # 全データの75%タイル
-            #threshold_q75_global = df['concentration'].quantile(0.75)
-            # 年ごとの75%タイルを計算し、その最大値を閾値にする
-            threshold_q75_yearly_max = df.groupby('year')['concentration'].quantile(0.75).max()
-            
-            # 二項化（低濃度・高濃度判定）
-            # 25%タイル
-            threshold_q25 = df['concentration'].quantile(0.25)
-            df_binomial_q25 = df[['year', 'concentration']].copy()
-            df_binomial_q25['binary'] = (df['concentration'] <= threshold_q25).astype(int)
+                    aic0_dl, aic1_dl, p1_dl, a_dl = binomial_trend_analyze(df_dl, flag_col='binary')
+                    print(f"DL閾値 ({threshold_dl:.4f}): 傾き={a_dl:.4f}, p1={p1_dl:.3f}")
+                except Exception as e:
+                    print(f"DL閾値での二項回帰エラー: {e}")
 
-            # 75%タイル
-            threshold_q75 = df['concentration'].quantile(0.75)
-            df_binomial_q75 = df[['year', 'concentration']].copy()
-            df_binomial_q75['binary'] = (df['concentration'] >= threshold_q75).astype(int)
-
-            # DL閾値（従来通り detection_limit がある場合のみ）
-            if 'detection_limit' in df.columns:
-                threshold_dl = df['detection_limit'].max()
-                df_binomial_dl = df[['year', 'concentration']].copy()
-                df_binomial_dl['binary'] = (df['concentration'] <= threshold_dl).astype(int)
-
-            # 解析関数に渡す
+            # 2. 25%タイルでの二項回帰実行
             try:
-                aic0_dl, aic1_dl, p1_dl, a_dl = binomial_trend_analyze(df_binomial_dl)
-                print(f"DL閾値: 傾き={a_dl:.4f}, p1={p1_dl:.3f}")
-            except Exception as e:
-                print(f"DL閾値での二項回帰エラー: {e}")
+                threshold_q25 = df['concentration'].quantile(0.25)
+                df_q25 = df[['year', 'concentration']].copy()
+                df_q25['binary'] = (df['concentration'] <= threshold_q25).astype(int)
 
-            try:
-                aic0_q25, aic1_q25, p1_q25, a_q25 = binomial_trend_analyze(df_binomial_q25)
-                print(f"25%タイル閾値: 傾き={a_q25:.4f}, p1={p1_q25:.3f}")
+                aic0_q25, aic1_q25, p1_q25, a_q25 = binomial_trend_analyze(df_q25, flag_col='binary')
+                print(f"25%タイル閾値 ({threshold_q25:.4f}): 傾き={a_q25:.4f}, p1={p1_q25:.3f}")
             except Exception as e:
                 print(f"25%タイルでの二項回帰エラー: {e}")
 
+            # 3. 75%タイルでの二項回帰実行
             try:
-                aic0_q75, aic1_q75, p1_q75, a_q75 = binomial_trend_analyze(df_binomial_q75)
-                print(f"75%タイル閾値: 傾き={a_q75:.4f}, p1={p1_q75:.3f}")
+                threshold_q75 = df['concentration'].quantile(0.75)
+                df_q75 = df[['year', 'concentration']].copy()
+                df_q75['binary'] = (df['concentration'] >= threshold_q75).astype(int)
+
+                aic0_q75, aic1_q75, p1_q75, a_q75 = binomial_trend_analyze(df_q75, flag_col='binary')
+                print(f"75%タイル閾値 ({threshold_q75:.4f}): 傾き={a_q75:.4f}, p1={p1_q75:.3f}")
             except Exception as e:
                 print(f"75%タイルでの二項回帰エラー: {e}")
 
