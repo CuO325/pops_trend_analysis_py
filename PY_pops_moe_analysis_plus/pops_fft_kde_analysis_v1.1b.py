@@ -1,7 +1,7 @@
 #pops_fft_kde_analysis_v1.1a.py
 # pops_bayes_fastfft_pM1_update.pyを名称変更
 # FFT-KDE 高速ベイズ（MCMC）を統合した修正版
-version = "script: pops_fft_analysis_v1_1b.py,   author:H.S."  # レポートにバージョンを表示するための変数
+version = "script: pops_fft_kde_analysis_v1.1b.py, 2026 (H.S.)"  # レポートにバージョンを表示するための変数
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -1000,7 +1000,7 @@ if __name__ == "__main__":
                         'BF': None
                     }
 
-                    bf_interpretation = {'interpretation': "増減傾向の判断が困難な場合、TIによる解析が可能です。通常必要ありません。"}
+                    bf_interpretation = {'interpretation': "TIによる解析が可能です。多くの場合では、実施の必要はありません。"}
 
             except Exception as e:
                 print("ベイズ推定失敗:", e)
@@ -1219,30 +1219,9 @@ if __name__ == "__main__":
         # 保存
         with open(f"{filename}_analysis_results.json", "w", encoding="utf-8") as f:
             json.dump(reports, f, ensure_ascii=False, indent=2, cls=NpEncoder)
-        # 整形・保存（安全に丸め）
-        """ 
-
-        def format_ci(ci, digits=4):
-            #信用区間を安全に丸めてリスト形式に統一
-            try:
-                arr = np.asarray(ci, dtype=float)
-                if arr.size == 2 and not np.isnan(arr).any():
-                    return [round(float(arr[0]), digits), round(float(arr[1]), digits)]
-            except Exception:
-                pass
-            return [np.nan, np.nan]
-
-        def format_float(val, digits=4):
-            #数値を安全に丸める
-            try:
-                return round(float(val), digits)
-            except Exception:
-                return np.nan
-        """
 
 
     html_path = f"{filename}_regression_report_{time.strftime("%Y%m%d_%H%M%S")}.html"
-    #author = f"{version}"  # レポートの著者名を指定
     
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(f"<html><head><meta charset='utf-8'><title>{filename} 回帰分析レポート</title></head><body>")
