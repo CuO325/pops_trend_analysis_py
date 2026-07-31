@@ -1000,7 +1000,7 @@ if __name__ == "__main__":
                         'BF': None
                     }
 
-                    bf_interpretation = {'interpretation': "TIによる解析が可能です。多くの場合では、実施の必要はありません。"}
+                    bf_interpretation = {'interpretation': "<b> run_ti = True</b>　とすれば、TIによる解析が可能です。"}
 
             except Exception as e:
                 print("ベイズ推定失敗:", e)
@@ -1291,7 +1291,7 @@ if __name__ == "__main__":
 
 
             if run_ti == False:
-                f.write(f"<b><br>ユーザー指定（run_ti=False）により、BF（TI計算）によるモデル比較は実行されませんでした。</b><br>")
+                f.write(f"<b><br>BF（TI計算）によるモデル比較は実行されませんでした。</b><br>")
                 f.write(f"<b>BF評価:</b> { bf_interpretation['interpretation']}<br>")        
             else:
                 f.write("<br><b>---Bayes Factorによるモデル比較-TI--</b><br>")
