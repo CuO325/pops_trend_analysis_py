@@ -48,10 +48,10 @@ class NpEncoder(json.JSONEncoder):
 #-------------------
 #二項分布用関数
 #-------------------
-import numpy as np
-import statsmodels.api as sm
-import warnings
-from statsmodels.tools.sm_exceptions import PerfectSeparationWarning
+#import numpy as np
+#import statsmodels.api as sm
+#import warnings
+#from statsmodels.tools.sm_exceptions import PerfectSeparationWarning
 def binomial_trend_analyze(df, flag_col=None):
     """
     二項ロジスティック回帰分析を行う関数
@@ -100,51 +100,6 @@ def binomial_trend_analyze(df, flag_col=None):
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always", category=PerfectSeparationWarning)
         
-        model1 = sm.GLM(y_binomial, X1, family=sm.families.Binomial())
-        model1_fit = model1.fit()
-        aic1 = model1_fit.aic
-        
-        model0 = sm.GLM(y_binomial, X0, family=sm.families.Binomial())
-        model0_fit = model0.fit()
-        aic0 = model0_fit.aic
-        
-    delta_aic = aic1 - aic0
-    numerator = np.exp(-0.5 * delta_aic)
-    p1 = numerator / (1 + numerator)
-    slope = model1_fit.params[1] if len(model1_fit.params) > 1 else np.nan
-    
-    return aic0, aic1, p1, slope
-def binomial_trend_analyze_ogood(df):
-
-    unified_dl = df['detection_limit'].max()
-    df['low_flag'] = (df['concentration'] < unified_dl).astype(int)
-    
-    # 年ごとに「ND数 (low_count)」と「NDでない数 (not_low_count)」を集計
-    yearly_data = df.groupby('year').agg(
-        low_count=('low_flag', 'sum'),
-        total_count=('low_flag', 'count')
-    ).reset_index()
-    
-    # NDでない数（非ND数）を算出
-    yearly_data['not_low_count'] = yearly_data['total_count'] - yearly_data['low_count']
-    
-    x_year = yearly_data['year'].astype(float).to_numpy()
-    X1 = sm.add_constant(x_year).astype(float)
-    
-    # 応答変数を [ND数, 非ND数] の2列行列を作成
-    y_binomial = yearly_data[['low_count', 'not_low_count']].to_numpy().astype(float)
-    
-    # 有効なデータ（全試行数が0でない行）のフィルタリング
-    valid_mask = (yearly_data['total_count'] > 0) & (~np.isnan(X1).any(axis=1))
-    X1 = X1[valid_mask]
-    y_binomial = y_binomial[valid_mask]
-    
-    X0 = np.ones((len(y_binomial), 1), dtype=float)
-    
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always", category=PerfectSeparationWarning)
-        
-        # freq_weights を使わず、y に 2列の行列を渡す
         model1 = sm.GLM(y_binomial, X1, family=sm.families.Binomial())
         model1_fit = model1.fit()
         aic1 = model1_fit.aic
@@ -639,7 +594,7 @@ def fast_kde_log_likelihood_from_residuals(a, b, x_centered, y, lookup, use_loo=
 
     # fast_kde_log_likelihood は [params, x, y, lookup_func] の4引数のみを受け取ります
     return fast_kde_log_likelihood([a, b], x_centered, y, lookup)
-
+"""
 def safe_gaussian_kde(values, bw_method=None):
 
 
@@ -660,6 +615,7 @@ def safe_gaussian_kde(values, bw_method=None):
                 def pdf(self, x):
                     return (1.0 / (np.sqrt(2*np.pi)*self.sigma)) * np.exp(-0.5 * ((x - self.mu)/self.sigma)**2)
             return SimpleKDE(np.mean(values), std)
+"""
 def compute_Rhat(chains, axis=0):
 
     try:
@@ -889,6 +845,9 @@ if __name__ == "__main__":
     #filenames = ["13HCBD"] 
     filenames = ["HCB大気温暖期2013"]
 
+     # ===== TI（オプション） =====
+    run_ti=False
+
     for filename in filenames:
         print(f"\n\n==================== ファイル処理開始: {filename} ====================")
         filepath = f"data/{filename}.csv"
@@ -997,6 +956,7 @@ if __name__ == "__main__":
 
            # ② FFT-KDE ベイズ MCMC（自動早期打ち切り）
             print("\n--- 2. FFT-KDE ベイズ事後（高速 MCMC、自動早期停止） ---")
+            bayes_trend = "未評価"
             try:
                 residuals_mle = y_true - (a * x_centered + b)
                 lookup = prepare_fft_kde_lookup(residuals_mle, bw_factor=1.0, use_loo=False)
@@ -1030,7 +990,41 @@ if __name__ == "__main__":
                 # 0を含むかどうか判定
                 contains_zero = (bayes_CI_a[0] <= 0 <= bayes_CI_a[1])
                 #p_neg_slope = bayes_res["p_neg_slope"]
-                p_pos_slope = 1.0 - p_neg_slope
+                
+                
+                # ここまでは「必須」：FFT-KDEベイズ事後による傾向判定
+                bayes_trend = bayes_trend_judgement(contains_zero, {"p_M1": 1.0}, p_neg_slope, p_pos_slope)
+
+                print(f"ベイズ推定 a = {a_bayes:.4f} (95% CI {ci_a})")
+                print(f"ベイズ推定 b = {b_bayes:.4f} (95% CI {ci_b})")
+                print(f"減少傾向の事後確率 P(a < 0) = {p_neg_slope:.4f}")
+                print(f"→ {bayes_trend}")
+
+                
+                # ===== TI（オプション） =====
+
+                if run_ti==True:
+                    try:
+                        res_lin = compute_log_marginal_TL(df, model='linear', verbose=True)
+                        res_const = compute_log_marginal_TL(df, model='constant', verbose=True)
+
+                        cmp = compare_models_logZ(res_lin, res_const)
+                        bf_interpretation = interpret_bayes_factor(BF=cmp['BF'])
+
+                        print("モデル事後確率 p(M1|y):", cmp['p_M1'])
+                        print("logZ(linear): ", cmp['logZ1'])
+                        print("logZ(const):  ", cmp['logZ0'])
+                        print("対数ベイズ因子logBF:", cmp['logBF'])
+                        print("BF:", cmp['BF'])
+                        print("BF評価:", bf_interpretation['interpretation'])
+
+                    except Exception as e_ti:
+                        print("TI（logZ計算）は失敗しましたが、ベイズ事後の傾向判定は有効です:", e_ti)
+
+            except Exception as e:
+                print("ベイズ推定失敗:", e)
+                bayes_trend = "エラー"
+                """
                 #==========================================================
                 res_lin = compute_log_marginal_TL(df, model='linear', verbose=True)
                 res_const = compute_log_marginal_TL(df, model='constant', verbose=True)
@@ -1038,7 +1032,7 @@ if __name__ == "__main__":
                 cmp = compare_models_logZ(res_lin, res_const)
                 print("モデル事後確率 p(M1|y):", cmp['p_M1'])                
                 #bayes_trend = f"a: {a_bayes} < 0 and P: {p_neg_slope} >= 0.95 減少傾向あり" if (not np.isnan(a_bayes) and a_bayes < 0 and (not np.isnan(p_neg_slope) and p_neg_slope >= 0.95)) else "減少傾向なし"
-                bayes_trend  = bayes_trend_judgement(contains_zero, cmp, p_neg_slope, p_pos_slope)              
+                #bayes_trend  = bayes_trend_judgement(contains_zero, cmp, p_neg_slope, p_pos_slope)              
                 bf_interpretation = interpret_bayes_factor(BF=cmp['BF'])
                 print("logZ(linear): ", cmp['logZ1'])
                 print("logZ(const):  ", cmp['logZ0'])
@@ -1057,6 +1051,7 @@ if __name__ == "__main__":
                 # ここでは a_bayes 等を上書きしない（既に成功している場合に消さないため）
                 print("ベイズ推定失敗:", e)
                 bayes_trend = "エラー"
+            """
 
             # ③ ブートストラップ
             try:
@@ -1292,8 +1287,9 @@ if __name__ == "__main__":
         """
 
 
-    html_path = f"{filename}_regression_report.html"
+    html_path = f"{filename}_regression_report_{time.strftime("%Y%m%d_%H%M%S")}.html"
     #author = f"{version}"  # レポートの著者名を指定
+    
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(f"<html><head><meta charset='utf-8'><title>{filename} 回帰分析レポート</title></head><body>")
         f.write(f"<h1>{filename} 分析レポート </h1>")
@@ -1355,14 +1351,19 @@ if __name__ == "__main__":
             f.write(f"<b>切片95%CI:</b> [{bayes['bayes_CI_b'][0]:.6f}, {bayes['bayes_CI_b'][1]:.6f}]<br>")
             f.write(f"<b>減少傾向の事後確率 P(a<0):</b> {bayes['p_neg']:.6f}<br>")
             f.write(f"<b>増加傾向の事後確率 P(a>0):</b> {bayes['p_pos']:.6f}<br>")
-
-            f.write("<br><b>---Bayes Factorによるモデル比較---</b><br>")
-            f.write(f"<b>線形モデルの対数周辺尤度(モデルエビデンス) logZ(linear):</b> {bayes['logZ_linear']:.6f}<br>")
-            f.write(f"<b>定数モデルの対数周辺尤度(モデルエビデンス) logZ(const):</b> {bayes['logZ_const']:.6f}<br>")
-            f.write(f"<b>対数ベイズ因子 logBF:</b> {bayes['logBF']:.6f}<br>")
-            f.write(f"<b>ベイズ因子 BF:</b> {bayes['BF']:.6f}<br>")
-            f.write(f"<b>傾向判定:</b> {bayes['bayes_trend']}<br>")
-            f.write(f"<b>BF評価:</b> {bayes['BF評価']}<br>")
+            f.write(f"<b>対数ベイズ因子 logBF:</b> {cmp['logBF']:.6f}<br>")
+            f.write(f"<b>ベイズ因子 BF:</b> {cmp['BF']:.6f}<br>")    
+            f.write(f"<b>BF評価:</b> { bf_interpretation['interpretation']}<br>")        
+            if run_ti == False:
+                f.write(f"<b><br>TIによるモデル比較は実行されませんでした。</b><br>")
+            else:
+                f.write("<br><b>---Bayes Factorによるモデル比較-TI--</b><br>")
+                f.write(f"<b>線形モデルの対数周辺尤度(モデルエビデンス) logZ(linear):</b> {bayes['logZ_linear']:.6f}<br>")
+                f.write(f"<b>定数モデルの対数周辺尤度(モデルエビデンス) logZ(const):</b> {bayes['logZ_const']:.6f}<br>")
+                f.write(f"<b>対数ベイズ因子 logBF:</b> {bayes['logBF']:.6f}<br>")
+                f.write(f"<b>ベイズ因子 BF:</b> {bayes['BF']:.6f}<br>")
+                f.write(f"<b>傾向判定:</b> {bayes['bayes_trend']}<br>")
+                f.write(f"<b>BF評価:</b> {bayes['BF評価']}<br>")
 
             f.write("<hr>")
             # ---- Bootstrap ----

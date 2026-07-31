@@ -1,32 +1,25 @@
-#pops_fft_kde_analysis_v1.1a.py
-# pops_bayes_fastfft_pM1_update.pyを名称変更
-# FFT-KDE 高速ベイズ（MCMC）を統合した修正版
-version = "script: pops_fft_analysis_v1_1a.py,   author:H.S."  # レポートにバージョンを表示するための変数
+# pops_fft_kde_analysis_clean.py
+# FFT-KDE + MLE + MCMC + TI（熱力学積分）を統合したクリーン版
+version = "script: pops_fft_analysis_clean.py, author:H.S."
 
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
-import math
-import japanize_matplotlib
-from sklearn.utils import resample
-from scipy.stats import gaussian_kde #scipy.stats にも trapezoid が存在する: 台形分布（Trapezoidal distribution）」という確率分布オブジェクト
-from scipy.integrate import trapezoid #数値積分用の関数, scipy.statsと非常に紛らわしい変更がなされた。
-from scipy.optimize import minimize
 import statsmodels.api as sm
 import warnings
-from statsmodels.tools.sm_exceptions import PerfectSeparationWarning
-from sklearn.metrics import r2_score
-import os
+import json
 import emcee
 import time
-from scipy.signal import fftconvolve
-from scipy.interpolate import interp1d
+import os
+from sklearn.utils import resample
+from scipy.stats import gaussian_kde
+from scipy.optimize import minimize
+from scipy.integrate import trapezoid
+from sklearn.metrics import r2_score
 
-from tqdm import tqdm  
-import json
+from analysis.fft_kde_common_engine import prepare_fft_kde_lookup, fast_kde_log_likelihood
 
-from analysis.fft_kde_common_engine import prepare_fft_kde_lookup, fast_kde_log_likelihood, log_prior_standard
-
+# JSON encoder
 def log_posterior(params, x, y, lookup):
     lp = log_prior_standard(params)
     if not np.isfinite(lp): return -np.inf
@@ -42,48 +35,55 @@ class NpEncoder(json.JSONEncoder):
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
         return super(NpEncoder, self).default(obj)
+
+def binomial_trend_analyze(df, flag_col=None):
+    """
+    二項ロジスティック回帰分析を行う関数
+    - flag_col が指定されていればその列(0/1)を使用
+    - 指定がなければ detection_limit と concentration から判定
+    """
+    df_work = df.copy()
     
+    # 1. 0/1 フラグ列の確定
+    if flag_col is not None and flag_col in df_work.columns:
+        df_work['low_flag'] = df_work[flag_col].astype(int)
+    elif 'low_flag' in df_work.columns:
+        pass # すでに low_flag があればそのまま使用
+    elif 'binary' in df_work.columns:
+        df_work['low_flag'] = df_work['binary'].astype(int)
+    elif 'detection_limit' in df_work.columns and 'concentration' in df_work.columns:
+        unified_dl = df_work['detection_limit'].max()
+        df_work['low_flag'] = (df_work['concentration'] < unified_dl).astype(int)
+    else:
+        raise KeyError("二項化に必要な列 ('low_flag', 'binary', または 'detection_limit'/'concentration') が見つかりません。")
 
-
-#-------------------
-#二項分布用関数
-#-------------------
-import numpy as np
-import statsmodels.api as sm
-import warnings
-from statsmodels.tools.sm_exceptions import PerfectSeparationWarning
-
-def binomial_trend_analyze(df):
-
-    unified_dl = df['detection_limit'].max()
-    df['low_flag'] = (df['concentration'] < unified_dl).astype(int)
-    
-    # 年ごとに「ND数 (low_count)」と「NDでない数 (not_low_count)」を集計
-    yearly_data = df.groupby('year').agg(
+    # 2. 年ごとに「フラグ(1)の数 (low_count)」と「フラグ(0)の数 (not_low_count)」を集計
+    yearly_data = df_work.groupby('year').agg(
         low_count=('low_flag', 'sum'),
         total_count=('low_flag', 'count')
     ).reset_index()
     
-    # NDでない数（非ND数）を算出
     yearly_data['not_low_count'] = yearly_data['total_count'] - yearly_data['low_count']
     
     x_year = yearly_data['year'].astype(float).to_numpy()
     X1 = sm.add_constant(x_year).astype(float)
     
-    # 応答変数を [ND数, 非ND数] の2列行列を作成
+    # 応答変数を [成功数(1), 失敗数(0)] の2列行列として作成
     y_binomial = yearly_data[['low_count', 'not_low_count']].to_numpy().astype(float)
     
-    # 有効なデータ（全試行数が0でない行）のフィルタリング
+    # 有効データのフィルタリング
     valid_mask = (yearly_data['total_count'] > 0) & (~np.isnan(X1).any(axis=1))
     X1 = X1[valid_mask]
     y_binomial = y_binomial[valid_mask]
     
+    if len(y_binomial) == 0:
+        return np.nan, np.nan, np.nan, np.nan
+
     X0 = np.ones((len(y_binomial), 1), dtype=float)
     
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always", category=PerfectSeparationWarning)
         
-        # freq_weights を使わず、y に 2列の行列を渡す
         model1 = sm.GLM(y_binomial, X1, family=sm.families.Binomial())
         model1_fit = model1.fit()
         aic1 = model1_fit.aic
@@ -98,7 +98,6 @@ def binomial_trend_analyze(df):
     slope = model1_fit.params[1] if len(model1_fit.params) > 1 else np.nan
     
     return aic0, aic1, p1, slope
-
 
 
 # ---------------------------
@@ -159,22 +158,6 @@ def neg_log_likelihood_1(params, x, y, initial_kde):
     except np.linalg.LinAlgError:
         return 1e10
 
-def neg_log_likelihood_0(params, x, y):
-
-    b0 = params[0]
-    residuals = y - b0
-    # === バンド幅を0.3に固定する例 ===
-    #h_fixed = 1
-    try:
-        kde = gaussian_kde(residuals)
-        #kde = gaussian_kde(residuals, bw_method=h_fixed) # ここで設定
-        log_likelihood = np.sum(np.log(kde.pdf(residuals) + 1e-10))
-        return -log_likelihood
-    except np.linalg.LinAlgError:
-        return 1e10
-#--------------------
-# MLE (MCMC初期値設定にも利用)
-#--------------------
 def run_mle_and_aic(df, max_iter=20, tolerance=1e-6):
     
     np.set_printoptions(precision=10, suppress=True)
@@ -314,255 +297,117 @@ def run_mle_and_aic(df, max_iter=20, tolerance=1e-6):
 
     }
 
-
-#---------------------------
-# 事前・事後・MCMC 関連（FFT-KDE版）
 # ---------------------------
+# FFT-KDE 尤度
+# ---------------------------
+def fast_kde_log_likelihood_from_residuals(a, b, x, y, lookup):
+    return fast_kde_log_likelihood([a, b], x, y, lookup)
 
-def log_prior_informative(params, data_scale=None):
-
+# ---------------------------
+# 事前分布
+# ---------------------------
+def log_prior_informative(params, data_scale):
     a, b = params
     if not (-100 < a < 100 and -100 < b < 100):
         return -np.inf
-    if data_scale is None:
-        #return - (a**2) / (2 * 0.5**2) - (b**2) / (2 * 2.0**2)
-        # 修正案（例：sigma_aを0.5から2.0に拡大）
-        return - (a**2) / (2 * 2.0**2) - (b**2) / (2 * 2.0**2)
-    else:
-        x_range = data_scale.get('x_range', 1.0)
-        y_std = data_scale.get('y_std', 1.0)
-        #a_sd = max(0.01, y_std / max(1e-6, x_range) * 2.0)
-        # 修正案（例：a_sdの最小値を0.01から0.1に拡大）
-        a_sd = max(0.1, y_std / max(1e-6, x_range) * 2.0)
-        b_sd = max(0.1, y_std * 2.0)
+    x_range = data_scale['x_range']
+    y_std = data_scale['y_std']
+    a_sd = max(0.1, y_std / max(1e-6, x_range) * 2.0)
+    b_sd = max(0.1, y_std * 2.0)
+    return - (a**2)/(2*a_sd**2) - (b**2)/(2*b_sd**2)
 
-        return - (a**2) / (2 * a_sd**2) - (b**2) / (2 * b_sd**2)
-    
-
-def log_posterior_fast(params, x_centered, y, lookup, data_scale=None):
-
-    lp = log_prior_informative(params, data_scale=data_scale)
-    if not np.isfinite(lp):
-        return -np.inf
+# ---------------------------
+# MCMC（FFT-KDE）
+# ---------------------------
+def log_posterior_fast(params, x, y, lookup, data_scale):
+    lp = log_prior_informative(params, data_scale)
+    if not np.isfinite(lp): return -np.inf
     a, b = params
-    ll = fast_kde_log_likelihood_from_residuals(a, b, x_centered, y, lookup)
+    ll = fast_kde_log_likelihood_from_residuals(a, b, x, y, lookup)
     return lp + ll
-# -----------------------------------------------------
-#  固定 KDE（FFT）を用いた対数尤度を β で温度付けしたもの
-#  FFT-KDEによる対数尤度を温度βでスケーリングした事後分布（log posterior）を返す
-# -----------------------------------------------------
-def tempered_log_posterior(params, beta, x_centered, y, lookup, data_scale=None):
-
-    lp = log_prior_informative(params, data_scale=data_scale)
-    if not np.isfinite(lp):
-        return -np.inf
-
-    a, b = params
-    ll = fast_kde_log_likelihood_from_residuals(a, b, x_centered, y, lookup)
-    return lp + beta * ll
 
 
-# -----------------------------------------------------
-#  β（温度）ごとに MCMC を回して E_beta[logL] を推定　。n_steps=600, burn_frac=0.4 は試行回数としては比較的少
-# 指定された温度βに対してMCMCを実行し、E_β[logL]（期待対数尤度）を推定
-# -----------------------------------------------------
-
-
-def estimate_E_loglike_for_beta(
-    beta, x_centered, y, lookup,
-    n_walkers=20, n_steps=2000, burn_frac=0.4,
-    init_center=None, data_scale=None, show_progress=False
-):
-
+# ---------------------------
+# 熱力学積分（TI）
+# ---------------------------
+def estimate_E_loglike_for_beta(beta, x, y, lookup, init_center, data_scale):
     ndim = 2
-
-    if init_center is None:
-        init_center = np.array([0.0, np.mean(y)])
-
     rng = np.random.default_rng()
-    initial_pos = init_center + 1e-3 * rng.normal(size=(n_walkers, ndim))
+    initial_pos = init_center + 1e-3 * rng.normal(size=(20, ndim))
 
     def _logprob(theta):
-        return tempered_log_posterior(
-            theta, beta, x_centered, y, lookup, data_scale=data_scale
-        )
+        lp = log_prior_informative(theta, data_scale)
+        if not np.isfinite(lp): return -np.inf
+        ll = fast_kde_log_likelihood_from_residuals(theta[0], theta[1], x, y, lookup)
+        return lp + beta * ll
 
-    sampler = emcee.EnsembleSampler(n_walkers, ndim, _logprob)
+    sampler = emcee.EnsembleSampler(20, ndim, _logprob)
+    sampler.run_mcmc(initial_pos, 2000)
+    chain = sampler.get_chain(discard=800, flat=True)
 
-    pos, _, _ = sampler.run_mcmc(initial_pos, n_steps, progress=show_progress)
-    chain = sampler.get_chain(discard=int(n_steps * burn_frac), flat=True)
-
-    # 非 tempered で logL を評価（TI のため）
     ll_vals = np.array([
-        fast_kde_log_likelihood_from_residuals(th[0], th[1], x_centered, y, lookup)
+        fast_kde_log_likelihood_from_residuals(th[0], th[1], x, y, lookup)
         for th in chain
     ])
-    return np.mean(ll_vals), chain, sampler
+    return np.mean(ll_vals)
 
-
-# -----------------------------------------------------
-#  熱力学積分により logZ（周辺尤度）を計算 。n_steps=600, burn_frac=0.4 は試行回数としては比較的少い
-#  熱力学積分（TI）により周辺尤度 logZ を推定（FFT-KDEによる非パラメトリック尤度）
-# -----------------------------------------------------
-def compute_log_marginal_TL(
-    df, model='linear',
-    betas=None,
-    n_walkers=20, n_steps=600, burn_frac=0.4,
-    grid_n_lookup=1024, bw_factor=1.0,
-    verbose=True
-):
-    
+def compute_log_marginal_TL(df, model='linear', bw_factor=1.0, verbose=True):
     years = df['year'].values.astype(float)
-    x_base = years.min()
-    x_centered = years - x_base
+    x0 = years.min()
+    x = years - x0
     y = df['log_conc'].values.astype(float)
 
-    # -------------------
-    # MLE による残差 → KDE lookup 作成（モデルごと）
-    # -------------------
+    # MLE
     if model == 'linear':
-        res = minimize(
-            neg_log_likelihood,
-            [-0.01, np.mean(y)],
-            args=(x_centered, y),
-            method="L-BFGS-B"
-        )
+        res = minimize(neg_log_likelihood_linear, [-0.01, np.mean(y)], args=(x, y))
         a_mle, b_mle = res.x
-        residuals = y - (a_mle * x_centered + b_mle)
-
-    else:  # constant model
-        res0 = minimize(
-            neg_log_likelihood_0,
-            [np.mean(y)],
-            args=(x_centered, y),
-            method="L-BFGS-B"
-        )
-        b0 = res0.x[0]
+        residuals = y - (a_mle * x + b_mle)
+    else:
+        res = minimize(neg_log_likelihood_const, [np.mean(y)], args=(x, y))
+        b0 = res.x[0]
         a_mle, b_mle = 0.0, b0
         residuals = y - b0
-    # build_fft_kde_lookup の代わりに共通関数を使用
-    lookup = prepare_fft_kde_lookup(residuals, bw_factor=bw_factor, use_loo=False)
-    print("L476 DEBUG--------- lookup@ MLE による残差から → KDE lookup 作成", type(lookup))
 
-    # ----------------------------
-    # β grid（安定性優先：51点以上）
-    # ----------------------------
-    if betas is None:
-        # 均等に51点（デフォルトの12点より大幅に精度向上）
-        # betas = np.linspace(0.0, 1.0, 51) 
-        
-        # さらに安定性を求める場合は、以下のように1.0付近を密にする設定も有効です
-        betas = np.concatenate([
-            np.linspace(0, 0.9, 30, endpoint=False), # 0.9までを30点
-            np.linspace(0.9, 1.0, 21)               # 0.9から1.0までを21点
-        ])
+    lookup = prepare_fft_kde_lookup(residuals, bw_factor=bw_factor)
 
-    betas = np.unique(np.sort(betas))
+    betas = np.concatenate([
+        np.linspace(0, 0.9, 30, endpoint=False),
+        np.linspace(0.9, 1.0, 21)
+    ])
 
-
-    if verbose:
-        print(f"\n[TI] model={model}")
-        print(" betas =", np.round(betas, 3))
-
-    E_logL = []
-    """
-    data_scale = {
-        'x_range': x_centered.max() - x_centered.min(),
-        'y_std': np.nanstd(y)
-    }
-    """
-    data_scale = {
-        'x_range': float(x_centered.max() - x_centered.min()),
-        'y_std': float(np.nanstd(y)) # 明示的に float に変換
-    }
-
+    data_scale = {'x_range': x.max() - x.min(), 'y_std': np.nanstd(y)}
     init_center = np.array([a_mle, b_mle])
 
-    for beta in betas:
-        if verbose:
-            print(f" β={beta:.3f} ... ", end="")
-        E, chain, sampler = estimate_E_loglike_for_beta(
-            beta, x_centered, y, lookup,
-            n_walkers=n_walkers,
-            n_steps=n_steps,
-            burn_frac=burn_frac,
-            init_center=init_center,
-            data_scale=data_scale,
-            show_progress=False
-        )
-        if verbose:
-            print(f"E[logL]={E:.3f}")
+    E_logL = [estimate_E_loglike_for_beta(beta, x, y, lookup, init_center, data_scale)
+              for beta in betas]
 
-        E_logL.append(E)
-
-    # ----------------------------
-    # TI 積分：台形公式
-    # ----------------------------
-    #logZ = np.trapz(E_logL, x=betas)
     logZ = trapezoid(E_logL, betas)
+
     return {
         'model': model,
+        'logZ': logZ,
         'betas': betas,
         'E_logL': np.array(E_logL),
-        'logZ': logZ,
         'a_mle': a_mle,
-        'b_mle': b_mle,
-        'lookup': lookup,
+        'b_mle': b_mle
     }
 
-# -----------------------------------------------------
-# 0次 vs 1次 の Bayes 因子・事後確率
-# 周辺尤度 logZ に基づいてベイズ因子と事後確率を計算し、モデル比較を行う
-# -----------------------------------------------------
-
+# ---------------------------
+# モデル比較（Bayes 因子）
+# ---------------------------
 def compare_models_logZ(res1, res0, prior_ratio=1.0):
-    """
-    周辺尤度 logZ に基づいてベイズ因子と事後確率を計算する (数値安定版)
-    """
-    # 1. 極端な logZ 値による math domain error を防ぐためのクリッピング
-    # TIで失敗している場合、-1e18のような値が入るため、現実的な下限を設定
     l1 = max(res1['logZ'], -1e10)
     l0 = max(res0['logZ'], -1e10)
-    
-    # 2. 対数ベイズ因子の計算
     logBF = l1 - l0 + np.log(prior_ratio)
-    
-    # 3. 事後確率 p_M1 の安定計算
-    # p = BF / (1 + BF) は p = 1 / (1 + exp(-logBF)) と等価 (シグモイド関数)
-    # logBF が大きすぎると exp(-logBF) は 0 に、小さすぎると inf になるのを防ぐ
+
     if logBF > 700:
-        p_M1 = 1.0
-        BF = np.inf
-    elif logBF < -700:
-        p_M1 = 0.0
-        BF = 0.0
-    else:
-        BF = np.exp(logBF)
-        p_M1 = 1.0 / (1.0 + np.exp(-logBF))
+        return {'logBF': logBF, 'BF': np.inf, 'p_M1': 1.0}
+    if logBF < -700:
+        return {'logBF': logBF, 'BF': 0.0, 'p_M1': 0.0}
 
-    return {
-        'logZ1': l1,
-        'logZ0': l0,
-        'logBF': logBF,
-        'BF': BF,
-        'p_M1': p_M1,
-    }
-
-"""def compare_models_logZ(res1, res0, prior_ratio=1.0):
-   
-    
-    logBF = res1['logZ'] - res0['logZ'] + np.log(prior_ratio)
     BF = np.exp(logBF)
-    p_M1 = BF / (1 + BF)
-
-    return {
-        'logZ1': res1['logZ'],
-        'logZ0': res0['logZ'],
-        'logBF': logBF,
-        'BF': BF,
-        'p_M1': p_M1,
-    }
-"""
+    p_M1 = 1 / (1 + np.exp(-logBF))
+    return {'logBF': logBF, 'BF': BF, 'p_M1': p_M1}
 # ---------------------------
 # 高速 FFT-KDE ユーティリティ
 #ルックアップ作成の統一: build_fft_kde_lookup の定義を削除し、共通モジュールの prepare_fft_kde_lookup に置き換えます。
@@ -1033,50 +878,42 @@ if __name__ == "__main__":
                 trend_bin = "エラー"
                 a_bin, p1_bin = np.nan, np.nan
 
+             # ------------ 変数の事前初期化 ------------
+            a_dl, p1_dl = np.nan, np.nan
+            a_q25, p1_q25 = np.nan, np.nan
+            a_q75, p1_q75 = np.nan, np.nan
 
+            # 1. DL閾値での二項回帰実行
+            if 'detection_limit' in df.columns and not df['detection_limit'].dropna().empty:
+                try:
+                    threshold_dl = df['detection_limit'].max()
+                    df_dl = df[['year', 'concentration']].copy()
+                    df_dl['binary'] = (df['concentration'] < threshold_dl).astype(int)
 
-            # 閾値の定義
-            threshold_dl = df['detection_limit'].max()       # 最高検出下限値
-            threshold_q25 = df['concentration'].quantile(0.25)  # 25%タイル
-            threshold_q75 = df['concentration'].quantile(0.75)  # 75%タイル
-            # 全データの75%タイル
-            #threshold_q75_global = df['concentration'].quantile(0.75)
-            # 年ごとの75%タイルを計算し、その最大値を閾値にする
-            threshold_q75_yearly_max = df.groupby('year')['concentration'].quantile(0.75).max()
-            
-            # 二項化（低濃度・高濃度判定）
-            # 25%タイル
-            threshold_q25 = df['concentration'].quantile(0.25)
-            df_binomial_q25 = df[['year', 'concentration']].copy()
-            df_binomial_q25['binary'] = (df['concentration'] <= threshold_q25).astype(int)
+                    aic0_dl, aic1_dl, p1_dl, a_dl = binomial_trend_analyze(df_dl, flag_col='binary')
+                    print(f"DL閾値 ({threshold_dl:.4f}): 傾き={a_dl:.4f}, p1={p1_dl:.3f}")
+                except Exception as e:
+                    print(f"DL閾値での二項回帰エラー: {e}")
 
-            # 75%タイル
-            threshold_q75 = df['concentration'].quantile(0.75)
-            df_binomial_q75 = df[['year', 'concentration']].copy()
-            df_binomial_q75['binary'] = (df['concentration'] >= threshold_q75).astype(int)
-
-            # DL閾値（従来通り detection_limit がある場合のみ）
-            if 'detection_limit' in df.columns:
-                threshold_dl = df['detection_limit'].max()
-                df_binomial_dl = df[['year', 'concentration']].copy()
-                df_binomial_dl['binary'] = (df['concentration'] <= threshold_dl).astype(int)
-
-            # 解析関数に渡す
+            # 2. 25%タイルでの二項回帰実行
             try:
-                aic0_dl, aic1_dl, p1_dl, a_dl = binomial_trend_analyze(df_binomial_dl)
-                print(f"DL閾値: 傾き={a_dl:.4f}, p1={p1_dl:.3f}")
-            except Exception as e:
-                print(f"DL閾値での二項回帰エラー: {e}")
+                threshold_q25 = df['concentration'].quantile(0.25)
+                df_q25 = df[['year', 'concentration']].copy()
+                df_q25['binary'] = (df['concentration'] <= threshold_q25).astype(int)
 
-            try:
-                aic0_q25, aic1_q25, p1_q25, a_q25 = binomial_trend_analyze(df_binomial_q25)
-                print(f"25%タイル閾値: 傾き={a_q25:.4f}, p1={p1_q25:.3f}")
+                aic0_q25, aic1_q25, p1_q25, a_q25 = binomial_trend_analyze(df_q25, flag_col='binary')
+                print(f"25%タイル閾値 ({threshold_q25:.4f}): 傾き={a_q25:.4f}, p1={p1_q25:.3f}")
             except Exception as e:
                 print(f"25%タイルでの二項回帰エラー: {e}")
 
+            # 3. 75%タイルでの二項回帰実行
             try:
-                aic0_q75, aic1_q75, p1_q75, a_q75 = binomial_trend_analyze(df_binomial_q75)
-                print(f"75%タイル閾値: 傾き={a_q75:.4f}, p1={p1_q75:.3f}")
+                threshold_q75 = df['concentration'].quantile(0.75)
+                df_q75 = df[['year', 'concentration']].copy()
+                df_q75['binary'] = (df['concentration'] >= threshold_q75).astype(int)
+
+                aic0_q75, aic1_q75, p1_q75, a_q75 = binomial_trend_analyze(df_q75, flag_col='binary')
+                print(f"75%タイル閾値 ({threshold_q75:.4f}): 傾き={a_q75:.4f}, p1={p1_q75:.3f}")
             except Exception as e:
                 print(f"75%タイルでの二項回帰エラー: {e}")
 
@@ -1345,4 +1182,3 @@ if __name__ == "__main__":
         full_path = os.path.join(current_dir, html_path)
 
 
-        print(f"\n→ HTMLレポートを作成しました: {full_path}")
