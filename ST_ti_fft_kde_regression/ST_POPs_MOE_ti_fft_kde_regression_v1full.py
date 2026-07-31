@@ -8,10 +8,12 @@ from analysis.run_analysis3 import run_ols_analysis, run_mle_and_aic, run_fft_ba
 
 import numpy as np
 import matplotlib.pyplot as plt
+import japanize_matplotlib
 import re
 import datetime 
 import corner
 import seaborn as sns
+
 
 """ -- Known issue: If the substance name is the same, the session is overwritten, resulting in unintended output.
  This issue can be addressed by changing the names of the chemicals, such as "PCB_Water" and "PCB_Air". """

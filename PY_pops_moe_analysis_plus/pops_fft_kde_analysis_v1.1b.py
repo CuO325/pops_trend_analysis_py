@@ -1,7 +1,7 @@
 #pops_fft_kde_analysis_v1.1a.py
 # pops_bayes_fastfft_pM1_update.pyを名称変更
 # FFT-KDE 高速ベイズ（MCMC）を統合した修正版
-version = "script: pops_fft_analysis_v1_1a.py,   author:H.S."  # レポートにバージョンを表示するための変数
+version = "script: pops_fft_analysis_v1_1b.py,   author:H.S."  # レポートにバージョンを表示するための変数
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -539,6 +539,7 @@ def compare_models_logZ(res1, res0, prior_ratio=1.0):
     # TIで失敗している場合、-1e18のような値が入るため、現実的な下限を設定
     l1 = max(res1['logZ'], -1e10)
     l0 = max(res0['logZ'], -1e10)
+    cmp=[]
     
     # 2. 対数ベイズ因子の計算
     logBF = l1 - l0 + np.log(prior_ratio)
@@ -564,21 +565,7 @@ def compare_models_logZ(res1, res0, prior_ratio=1.0):
         'p_M1': p_M1,
     }
 
-"""def compare_models_logZ(res1, res0, prior_ratio=1.0):
    
-    
-    logBF = res1['logZ'] - res0['logZ'] + np.log(prior_ratio)
-    BF = np.exp(logBF)
-    p_M1 = BF / (1 + BF)
-
-    return {
-        'logZ1': res1['logZ'],
-        'logZ0': res0['logZ'],
-        'logBF': logBF,
-        'BF': BF,
-        'p_M1': p_M1,
-    }
-"""
 # ---------------------------
 # 高速 FFT-KDE ユーティリティ
 #ルックアップ作成の統一: build_fft_kde_lookup の定義を削除し、共通モジュールの prepare_fft_kde_lookup に置き換えます。
@@ -594,28 +581,7 @@ def fast_kde_log_likelihood_from_residuals(a, b, x_centered, y, lookup, use_loo=
 
     # fast_kde_log_likelihood は [params, x, y, lookup_func] の4引数のみを受け取ります
     return fast_kde_log_likelihood([a, b], x_centered, y, lookup)
-"""
-def safe_gaussian_kde(values, bw_method=None):
 
-
-    try:
-        return gaussian_kde(values, bw_method=bw_method)
-    except Exception:
-        jittered = values + 1e-8 * np.random.randn(len(values))
-        try:
-            return gaussian_kde(jittered, bw_method=bw_method)
-        except Exception:
-            std = np.std(values)
-            if std <= 0:
-                std = 1e-6
-            class SimpleKDE:
-                def __init__(self, mu, sigma):
-                    self.mu = mu
-                    self.sigma = sigma
-                def pdf(self, x):
-                    return (1.0 / (np.sqrt(2*np.pi)*self.sigma)) * np.exp(-0.5 * ((x - self.mu)/self.sigma)**2)
-            return SimpleKDE(np.mean(values), std)
-"""
 def compute_Rhat(chains, axis=0):
 
     try:
@@ -843,10 +809,12 @@ if __name__ == "__main__":
     #filenames = ["大気温暖期","大気寒冷期","水質","底質","生物"]
     #filenames = ["水質","底質","生物"]
     #filenames = ["13HCBD"] 
-    filenames = ["HCB大気温暖期2013"]
+    #filenames = ["HCB大気温暖期2013"]
+    filenames = ["PCBwater"]
 
-     # ===== TI（オプション） =====
-    run_ti=False
+    # ===== TI（オプション） =====
+    run_ti = False
+    #run_ti = True
 
     for filename in filenames:
         print(f"\n\n==================== ファイル処理開始: {filename} ====================")
@@ -989,8 +957,9 @@ if __name__ == "__main__":
                 bayes_CI_a = ci_a.tolist() if isinstance(ci_a, np.ndarray) else ci_a
                 # 0を含むかどうか判定
                 contains_zero = (bayes_CI_a[0] <= 0 <= bayes_CI_a[1])
-                #p_neg_slope = bayes_res["p_neg_slope"]
-                
+                p_neg_slope = bayes_res["p_neg_slope"]
+                p_pos_slope = 1.0 - p_neg_slope
+
                 
                 # ここまでは「必須」：FFT-KDEベイズ事後による傾向判定
                 bayes_trend = bayes_trend_judgement(contains_zero, {"p_M1": 1.0}, p_neg_slope, p_pos_slope)
@@ -1011,47 +980,32 @@ if __name__ == "__main__":
                         cmp = compare_models_logZ(res_lin, res_const)
                         bf_interpretation = interpret_bayes_factor(BF=cmp['BF'])
 
-                        print("モデル事後確率 p(M1|y):", cmp['p_M1'])
-                        print("logZ(linear): ", cmp['logZ1'])
-                        print("logZ(const):  ", cmp['logZ0'])
-                        print("対数ベイズ因子logBF:", cmp['logBF'])
+                        print("p_M1 モデル事後確率 p(M1|y):", cmp['p_M1'])
+                        print("logZ_linear: ", cmp['logZ1'])
+                        print("logZ_const:  ", cmp['logZ0'])
+                        print("logBF 対数ベイズ因子:", cmp['logBF'])
                         print("BF:", cmp['BF'])
                         print("BF評価:", bf_interpretation['interpretation'])
 
                     except Exception as e_ti:
                         print("TI（logZ計算）は失敗しましたが、ベイズ事後の傾向判定は有効です:", e_ti)
+                else:
+                    
+                    # TIなし → ダミー値を入れて NameError を防ぐ
+                    cmp = {
+                        'p_M1': None,
+                        'logZ1': None,
+                        'logZ0': None,
+                        'logBF': None,
+                        'BF': None
+                    }
+
+                    bf_interpretation = {'interpretation': "増減傾向の判断が困難な場合、TIによる解析が可能です。通常必要ありません。"}
 
             except Exception as e:
                 print("ベイズ推定失敗:", e)
                 bayes_trend = "エラー"
-                """
-                #==========================================================
-                res_lin = compute_log_marginal_TL(df, model='linear', verbose=True)
-                res_const = compute_log_marginal_TL(df, model='constant', verbose=True)
 
-                cmp = compare_models_logZ(res_lin, res_const)
-                print("モデル事後確率 p(M1|y):", cmp['p_M1'])                
-                #bayes_trend = f"a: {a_bayes} < 0 and P: {p_neg_slope} >= 0.95 減少傾向あり" if (not np.isnan(a_bayes) and a_bayes < 0 and (not np.isnan(p_neg_slope) and p_neg_slope >= 0.95)) else "減少傾向なし"
-                #bayes_trend  = bayes_trend_judgement(contains_zero, cmp, p_neg_slope, p_pos_slope)              
-                bf_interpretation = interpret_bayes_factor(BF=cmp['BF'])
-                print("logZ(linear): ", cmp['logZ1'])
-                print("logZ(const):  ", cmp['logZ0'])
-                print("対数ベイズ因子logBF:", cmp['logBF'])
-                print("BF:", cmp['BF'])
-                print("BF評価:", bf_interpretation['interpretation'])
-                            
-                #===========================================================
-                 
-                print(f"ベイズ推定 a = {a_bayes:.4f} (95% CI {ci_a})")
-                print(f"ベイズ推定 b = {b_bayes:.4f} (95% CI {ci_b})")
-                print(f"減少傾向の事後確率 P(a < 0) = {p_neg_slope:.4f}")
-                print(f"→ {bayes_trend}")
-
-            except Exception as e:
-                # ここでは a_bayes 等を上書きしない（既に成功している場合に消さないため）
-                print("ベイズ推定失敗:", e)
-                bayes_trend = "エラー"
-            """
 
             # ③ ブートストラップ
             try:
@@ -1345,17 +1299,21 @@ if __name__ == "__main__":
             f.write("<h3>ベイズ推定（FFT-KDE-Bayes / BF）</h3>")    #ベイズ推定（FFT‑KDE Bayesian inference / Bayes Factor）
             f.write(f"<b>傾き a:</b> {bayes['slope']:.6f}<br>")
             f.write(f"<b>切片 b:</b> {bayes['intercept']:.6f}<br>")
-            f.write(f"<b>事後確率:</b> {bayes['p_M1']:.6f}<br>")
+
             
             f.write(f"<b>傾き95%CI:</b> [{bayes['bayes_CI_a'][0]:.6f}, {bayes['bayes_CI_a'][1]:.6f}]<br>")
             f.write(f"<b>切片95%CI:</b> [{bayes['bayes_CI_b'][0]:.6f}, {bayes['bayes_CI_b'][1]:.6f}]<br>")
             f.write(f"<b>減少傾向の事後確率 P(a<0):</b> {bayes['p_neg']:.6f}<br>")
             f.write(f"<b>増加傾向の事後確率 P(a>0):</b> {bayes['p_pos']:.6f}<br>")
-            f.write(f"<b>対数ベイズ因子 logBF:</b> {cmp['logBF']:.6f}<br>")
-            f.write(f"<b>ベイズ因子 BF:</b> {cmp['BF']:.6f}<br>")    
-            f.write(f"<b>BF評価:</b> { bf_interpretation['interpretation']}<br>")        
+            #f.write(f"<b>事後確率:</b> {bayes['p_M1']:.6f}<br>")            
+            #f.write(f"<b>対数ベイズ因子 logBF:</b> {cmp['logBF']:.6f}<br>")
+            #f.write(f"<b>ベイズ因子 BF:</b> {cmp['BF']:.6f}<br>")    
+            f.write(f"<b>傾向判定:</b> {bayes['bayes_trend']}<br>")
+
+
             if run_ti == False:
-                f.write(f"<b><br>TIによるモデル比較は実行されませんでした。</b><br>")
+                f.write(f"<b><br>ユーザー指定（run_ti=False）により、BF（TI計算）によるモデル比較は実行されませんでした。</b><br>")
+                f.write(f"<b>BF評価:</b> { bf_interpretation['interpretation']}<br>")        
             else:
                 f.write("<br><b>---Bayes Factorによるモデル比較-TI--</b><br>")
                 f.write(f"<b>線形モデルの対数周辺尤度(モデルエビデンス) logZ(linear):</b> {bayes['logZ_linear']:.6f}<br>")
