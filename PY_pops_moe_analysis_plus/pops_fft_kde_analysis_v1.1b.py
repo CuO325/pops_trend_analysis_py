@@ -806,11 +806,11 @@ def interpret_bayes_factor(logBF=None, BF=None):
 #---------------------------------------------------------------------
 if __name__ == "__main__":
     #filenames = ["PFOS大気温暖期"]
-    #filenames = ["大気温暖期","大気寒冷期","水質","底質","生物"]
+    filenames = ["大気温暖期","大気寒冷期","水質","底質","生物"]
     #filenames = ["水質","底質","生物"]
     #filenames = ["13HCBD"] 
     #filenames = ["HCB大気温暖期2013"]
-    filenames = ["PCBwater"]
+    #filenames = ["PCBwater"]
 
     # ===== TI（オプション） =====
     run_ti = False
@@ -1221,119 +1221,119 @@ if __name__ == "__main__":
             json.dump(reports, f, ensure_ascii=False, indent=2, cls=NpEncoder)
 
 
-    html_path = f"{filename}_regression_report_{time.strftime("%Y%m%d_%H%M%S")}.html"
-    
-    with open(html_path, "w", encoding="utf-8") as f:
-        f.write(f"<html><head><meta charset='utf-8'><title>{filename} 回帰分析レポート</title></head><body>")
-        f.write(f"<h1>{filename} 分析レポート </h1>")
-        f.write(f" {version}   <br><br>")
-        for analysis_report in reports:
-            filename_safe = f"{analysis_report['substance']}_{filename}".replace("'", "").replace(",", "_").replace(" ", "_").replace("/", "_")
-            image_path = os.path.join(PLOT_DIR, f"{filename_safe}_regression.png")
+        html_path = f"{filename}_regression_report_{time.strftime("%Y%m%d_%H%M%S")}.html"
+
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(f"<html><head><meta charset='utf-8'><title>{filename} 回帰分析レポート</title></head><body>")
+            f.write(f"<h1>{filename} 分析レポート </h1>")
+            f.write(f" {version}   <br><br>")
+            for analysis_report in reports:
+                filename_safe = f"{analysis_report['substance']}_{filename}".replace("'", "").replace(",", "_").replace(" ", "_").replace("/", "_")
+                image_path = os.path.join(PLOT_DIR, f"{filename_safe}_regression.png")
 
 
-            f.write("<hr>")
-            f.write(f"<h2>{analysis_report['substance']}</h2>")  
-            # ---- Graph ----
-            if os.path.exists(image_path):
-                f.write(f"<img src='{image_path}' width='600'><br>")
-            else:
-                f.write(f"<p><i>グラフ画像が見つかりませんでした。</i></p>{image_path}")     
-            # 基本情報
-            #f.write("<hr>")
-   
-            f.write(f"<p><b>対象ファイル:</b> {analysis_report['filename']}<br>")
-            f.write(f"<b>年データ:</b> {analysis_report['year']}<br>")
-            f.write(f"<b>分割年:</b> {analysis_report['split_year']}<br>")
-            f.write(f"<b>観測数:</b> {analysis_report['n_obs']}<br>")
-            f.write(f"<b>検出限界未満:</b> {analysis_report['n_censored']}<br></p>")
-            f.write("<hr>")    
-            # ---- OLS ----
-            ols = analysis_report['methods']['OLS']
-            f.write("<h3>最小二乗法（OLS）非推奨</h3>")
-            f.write(f"<b>傾き a:</b> {ols['slope']:.6f}<br>")
-            f.write(f"<b>切片 b:</b> {ols['intercept']:.6f}<br>")
-            f.write(f"<b>標準誤差 a:</b> {ols['stderr_a']:.6f}<br>")
-            f.write(f"<b>標準誤差 b:</b> {ols['stderr_b']:.6f}<br>")
-            f.write(f"<b>95%CI a:</b> [{ols['ci_a'][0]:.6f}, {ols['ci_a'][1]:.6f}]<br>")
-            f.write(f"<b>95%CI b:</b> [{ols['ci_b'][0]:.6f}, {ols['ci_b'][1]:.6f}]<br>")
-            f.write(f"<b>p値:</b> [{ols['pvalues'][0]:.3e}, {ols['pvalues'][1]:.6f}]<br>")
-            f.write(f"<b>決定係数 R²:</b> {ols['r2']:.6f}<br>")
-            f.write("<hr>")                   
-            # ---- MLE ----
-            mle = analysis_report['methods']['MLE']
-            f.write("<h3>最尤推定（KDE-MLE / AIC）環境省法</h3>")  #最尤推定（KDE‑based MLE / AIC）
-            f.write(f"<b>傾き a:</b> {mle['slope']:.6}<br>")
-            f.write(f"<b>切片 b:</b> {mle['intercept']:.6}<br>")
+                f.write("<hr>")
+                f.write(f"<h2>{analysis_report['substance']}</h2>")  
+                # ---- Graph ----
+                if os.path.exists(image_path):
+                    f.write(f"<img src='{image_path}' width='600'><br>")
+                else:
+                    f.write(f"<p><i>グラフ画像が見つかりませんでした。</i></p>{image_path}")     
+                # 基本情報
+                #f.write("<hr>")
 
-            f.write("<br><b>---AICによるモデル比較---</b><br>")
-            f.write(f"<b>AIC0:</b> {mle['aic0']:.6}<br>")
-            f.write(f"<b>AIC1:</b> {mle['aic1']:.6}<br>")
-            f.write(f"<b>モデル選択確率 p1:</b> {mle['p1']:.6}<br>")
-            f.write(f"<b>傾向判定:</b> {mle['trend']}<br>")
-            f.write("<hr>")
+                f.write(f"<p><b>対象ファイル:</b> {analysis_report['filename']}<br>")
+                f.write(f"<b>年データ:</b> {analysis_report['year']}<br>")
+                f.write(f"<b>分割年:</b> {analysis_report['split_year']}<br>")
+                f.write(f"<b>観測数:</b> {analysis_report['n_obs']}<br>")
+                f.write(f"<b>検出限界未満:</b> {analysis_report['n_censored']}<br></p>")
+                f.write("<hr>")    
+                # ---- OLS ----
+                ols = analysis_report['methods']['OLS']
+                f.write("<h3>最小二乗法（OLS）非推奨</h3>")
+                f.write(f"<b>傾き a:</b> {ols['slope']:.6f}<br>")
+                f.write(f"<b>切片 b:</b> {ols['intercept']:.6f}<br>")
+                f.write(f"<b>標準誤差 a:</b> {ols['stderr_a']:.6f}<br>")
+                f.write(f"<b>標準誤差 b:</b> {ols['stderr_b']:.6f}<br>")
+                f.write(f"<b>95%CI a:</b> [{ols['ci_a'][0]:.6f}, {ols['ci_a'][1]:.6f}]<br>")
+                f.write(f"<b>95%CI b:</b> [{ols['ci_b'][0]:.6f}, {ols['ci_b'][1]:.6f}]<br>")
+                f.write(f"<b>p値:</b> [{ols['pvalues'][0]:.3e}, {ols['pvalues'][1]:.6f}]<br>")
+                f.write(f"<b>決定係数 R²:</b> {ols['r2']:.6f}<br>")
+                f.write("<hr>")                   
+                # ---- MLE ----
+                mle = analysis_report['methods']['MLE']
+                f.write("<h3>最尤推定（KDE-MLE / AIC）環境省法</h3>")  #最尤推定（KDE‑based MLE / AIC）
+                f.write(f"<b>傾き a:</b> {mle['slope']:.6}<br>")
+                f.write(f"<b>切片 b:</b> {mle['intercept']:.6}<br>")
 
-            # ---- Bayes ----
-            bayes = analysis_report['methods']['Bayes']
-            f.write("<h3>ベイズ推定（FFT-KDE-Bayes / BF）</h3>")    #ベイズ推定（FFT‑KDE Bayesian inference / Bayes Factor）
-            f.write(f"<b>傾き a:</b> {bayes['slope']:.6f}<br>")
-            f.write(f"<b>切片 b:</b> {bayes['intercept']:.6f}<br>")
+                f.write("<br><b>---AICによるモデル比較---</b><br>")
+                f.write(f"<b>AIC0:</b> {mle['aic0']:.6}<br>")
+                f.write(f"<b>AIC1:</b> {mle['aic1']:.6}<br>")
+                f.write(f"<b>モデル選択確率 p1:</b> {mle['p1']:.6}<br>")
+                f.write(f"<b>傾向判定:</b> {mle['trend']}<br>")
+                f.write("<hr>")
 
-            
-            f.write(f"<b>傾き95%CI:</b> [{bayes['bayes_CI_a'][0]:.6f}, {bayes['bayes_CI_a'][1]:.6f}]<br>")
-            f.write(f"<b>切片95%CI:</b> [{bayes['bayes_CI_b'][0]:.6f}, {bayes['bayes_CI_b'][1]:.6f}]<br>")
-            f.write(f"<b>減少傾向の事後確率 P(a<0):</b> {bayes['p_neg']:.6f}<br>")
-            f.write(f"<b>増加傾向の事後確率 P(a>0):</b> {bayes['p_pos']:.6f}<br>")
-            #f.write(f"<b>事後確率:</b> {bayes['p_M1']:.6f}<br>")            
-            #f.write(f"<b>対数ベイズ因子 logBF:</b> {cmp['logBF']:.6f}<br>")
-            #f.write(f"<b>ベイズ因子 BF:</b> {cmp['BF']:.6f}<br>")    
-            f.write(f"<b>傾向判定:</b> {bayes['bayes_trend']}<br>")
+                # ---- Bayes ----
+                bayes = analysis_report['methods']['Bayes']
+                f.write("<h3>ベイズ推定（FFT-KDE-Bayes / BF）</h3>")    #ベイズ推定（FFT‑KDE Bayesian inference / Bayes Factor）
+                f.write(f"<b>傾き a:</b> {bayes['slope']:.6f}<br>")
+                f.write(f"<b>切片 b:</b> {bayes['intercept']:.6f}<br>")
 
-
-            if run_ti == False:
-                f.write(f"<b><br>BF（TI計算）によるモデル比較は実行されませんでした。</b><br>")
-                f.write(f"<b>BF評価:</b> { bf_interpretation['interpretation']}<br>")        
-            else:
-                f.write("<br><b>---Bayes Factorによるモデル比較-TI--</b><br>")
-                f.write(f"<b>線形モデルの対数周辺尤度(モデルエビデンス) logZ(linear):</b> {bayes['logZ_linear']:.6f}<br>")
-                f.write(f"<b>定数モデルの対数周辺尤度(モデルエビデンス) logZ(const):</b> {bayes['logZ_const']:.6f}<br>")
-                f.write(f"<b>対数ベイズ因子 logBF:</b> {bayes['logBF']:.6f}<br>")
-                f.write(f"<b>ベイズ因子 BF:</b> {bayes['BF']:.6f}<br>")
+                
+                f.write(f"<b>傾き95%CI:</b> [{bayes['bayes_CI_a'][0]:.6f}, {bayes['bayes_CI_a'][1]:.6f}]<br>")
+                f.write(f"<b>切片95%CI:</b> [{bayes['bayes_CI_b'][0]:.6f}, {bayes['bayes_CI_b'][1]:.6f}]<br>")
+                f.write(f"<b>減少傾向の事後確率 P(a<0):</b> {bayes['p_neg']:.6f}<br>")
+                f.write(f"<b>増加傾向の事後確率 P(a>0):</b> {bayes['p_pos']:.6f}<br>")
+                #f.write(f"<b>事後確率:</b> {bayes['p_M1']:.6f}<br>")            
+                #f.write(f"<b>対数ベイズ因子 logBF:</b> {cmp['logBF']:.6f}<br>")
+                #f.write(f"<b>ベイズ因子 BF:</b> {cmp['BF']:.6f}<br>")    
                 f.write(f"<b>傾向判定:</b> {bayes['bayes_trend']}<br>")
-                f.write(f"<b>BF評価:</b> {bayes['BF評価']}<br>")
-
-            f.write("<hr>")
-            # ---- Bootstrap ----
-            boot = analysis_report['methods']['Bootstrap']
-            f.write("<h3>ブートストラップ検定</h3>")
-            #f.write(f"<b>95%CI:</b> {boot['bootstrap_CI']:.6}<br>")
-            
-            ci = boot['bootstrap_CI']
-            f.write(f"<b>95%CI:</b> [{ci[0]:.6f}, {ci[1]:.6f}]<br>")
-            f.write(f"<b>傾きの平均推定値:</b> {boot['bootstrap_summary']['mean']:.6}<br>")
-            f.write(f"<b>標準偏差:</b> {boot['bootstrap_summary']['std']:.6}<br>")
-            f.write(f"<b>傾向判定:</b> {boot['bs_trend']}<br>")
-            f.write("<hr>")
-
-            # ---- Binomial ----
-            bino = analysis_report['methods']['Binominal']
-            f.write("<h3>二項ロジスティック回帰</h3>")
-            f.write(f"<b>傾き:</b> {bino['binomial_slope']:.6}<br>")
-            f.write(f"<b>モデル選択確率 p1:</b> {bino['binomial_p1']:.6}<br>")
-            f.write(f"<b>傾向判定:</b> {bino['binomial_trend']}<br>")
-            f.write(f"<b>DL閾値: 傾き:</b> {bino['DL閾値_slope']:.4f}, p1={ bino['DL閾値_p1']:.3f}<br>")
-            f.write(f"<b>25%タイル閾値:</b> 傾き={bino['25%タイル閾値_slope']:.4f}, p1={bino['25%タイル閾値_p1']:.3f}<br>")
-            f.write(f"<b>75%タイル閾値:</b> 傾き={bino['75%タイル閾値_slope']:.4f}, p1={bino['75%タイル閾値_p1']:.3f}<br>")
-            f.write("<hr>")
-
-            f.write(f"<br>　→グラフは {image_path} に保存されている。")
 
 
-        f.write("</body></html>")
-        # カレントディレクトリを取得
-        current_dir = os.getcwd()
-        # フルパスを作成
-        full_path = os.path.join(current_dir, html_path)
+                if run_ti == False:
+                    f.write(f"<b><br>BF（TI計算）によるモデル比較は実行されませんでした。</b><br>")
+                    f.write(f"<b>BF評価:</b> { bf_interpretation['interpretation']}<br>")        
+                else:
+                    f.write("<br><b>---Bayes Factorによるモデル比較-TI--</b><br>")
+                    f.write(f"<b>線形モデルの対数周辺尤度(モデルエビデンス) logZ(linear):</b> {bayes['logZ_linear']:.6f}<br>")
+                    f.write(f"<b>定数モデルの対数周辺尤度(モデルエビデンス) logZ(const):</b> {bayes['logZ_const']:.6f}<br>")
+                    f.write(f"<b>対数ベイズ因子 logBF:</b> {bayes['logBF']:.6f}<br>")
+                    f.write(f"<b>ベイズ因子 BF:</b> {bayes['BF']:.6f}<br>")
+                    f.write(f"<b>傾向判定:</b> {bayes['bayes_trend']}<br>")
+                    f.write(f"<b>BF評価:</b> {bayes['BF評価']}<br>")
+
+                f.write("<hr>")
+                # ---- Bootstrap ----
+                boot = analysis_report['methods']['Bootstrap']
+                f.write("<h3>ブートストラップ検定</h3>")
+                #f.write(f"<b>95%CI:</b> {boot['bootstrap_CI']:.6}<br>")
+                
+                ci = boot['bootstrap_CI']
+                f.write(f"<b>95%CI:</b> [{ci[0]:.6f}, {ci[1]:.6f}]<br>")
+                f.write(f"<b>傾きの平均推定値:</b> {boot['bootstrap_summary']['mean']:.6}<br>")
+                f.write(f"<b>標準偏差:</b> {boot['bootstrap_summary']['std']:.6}<br>")
+                f.write(f"<b>傾向判定:</b> {boot['bs_trend']}<br>")
+                f.write("<hr>")
+
+                # ---- Binomial ----
+                bino = analysis_report['methods']['Binominal']
+                f.write("<h3>二項ロジスティック回帰</h3>")
+                f.write(f"<b>傾き:</b> {bino['binomial_slope']:.6}<br>")
+                f.write(f"<b>モデル選択確率 p1:</b> {bino['binomial_p1']:.6}<br>")
+                f.write(f"<b>傾向判定:</b> {bino['binomial_trend']}<br>")
+                f.write(f"<b>DL閾値: 傾き:</b> {bino['DL閾値_slope']:.4f}, p1={ bino['DL閾値_p1']:.3f}<br>")
+                f.write(f"<b>25%タイル閾値:</b> 傾き={bino['25%タイル閾値_slope']:.4f}, p1={bino['25%タイル閾値_p1']:.3f}<br>")
+                f.write(f"<b>75%タイル閾値:</b> 傾き={bino['75%タイル閾値_slope']:.4f}, p1={bino['75%タイル閾値_p1']:.3f}<br>")
+                f.write("<hr>")
+
+                f.write(f"<br>　→グラフは {image_path} に保存されている。")
 
 
-        print(f"\n→ HTMLレポートを作成しました: {full_path}")
+            f.write("</body></html>")
+            # カレントディレクトリを取得
+            current_dir = os.getcwd()
+            # フルパスを作成
+            full_path = os.path.join(current_dir, html_path)
+
+
+            print(f"\n→ HTMLレポートを作成しました: {full_path}")

@@ -2,6 +2,7 @@
 
 
 #from turtle import st
+import io
 import os
 from unittest import result
 
@@ -1321,8 +1322,20 @@ def format_ci(ci, digits=4):
 
 import os
 from pathlib import Path
-
+import base64
 def generate_html_report(df, ols_res, mle_res, bayes_res, ti_res, plot_path, out_path, safe_f_substance):
+
+    # --- 画像を Base64 に変換 ---
+    def img_to_base64(path):
+        print("Converting image to Base64:", path)
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode("utf-8")
+    print("Debug plot_path=",plot_path)
+    #corrected_plot_path = os.path.join("outputs", plot_path)
+    #corrected_plot_path = os.path.join("outputs", plot_path.replace("/", os.sep))
+    corrected_plot_path = os.path.abspath(os.path.join("outputs", plot_path))
+
+
 
     html = []
     filename = out_path.replace("outputs/", "").replace(".html", "").split("_")[0]
@@ -1338,9 +1351,13 @@ def generate_html_report(df, ols_res, mle_res, bayes_res, ti_res, plot_path, out
 
     else:
         html.append("<h2>Linear Trend Analysis</h2>")
-    # --- グラフ画像 ---
-    html.append(f"<img src='{plot_path}' width='600'><br><br>")
 
+    # --- グラフ画像 ---埋め込む方式に変更
+    #html.append(f"<img src='{plot_path}' width='600'><br><br>")
+
+    # --- Base64 画像を埋め込む ---
+    img_b64 = img_to_base64(corrected_plot_path)
+    html.append(f"<img src='data:image/png;base64,{img_b64}' width='600'><br><br>")
     """
     if os.path.exists(f"outputs/{plot_path}"):
         html.append(f"<img src='{plot_path}' width='600'><br><br>")
@@ -1348,7 +1365,9 @@ def generate_html_report(df, ols_res, mle_res, bayes_res, ti_res, plot_path, out
     else:
         #html.append(f"<p>グラフ画像が見つかりません。{plot_path}, 存在: {os.path.exists(plot_path)}</p>")  
         html.append(f"<img src='{plot_path}' width='600'><br><br>")"""
-    
+
+
+
 
     # --- Data Overview ---
     html.append("<h2>Data Overview</h2>")
@@ -1392,9 +1411,43 @@ def generate_html_report(df, ols_res, mle_res, bayes_res, ti_res, plot_path, out
         html.append(f"Intercept b (centered-x mean): {bayes_res['b_mean']:.4f}<br>")
         html.append(f"95% credible interval (b): {bayes_res['ci_b']}<br><br>")
  
-
         html.append(f"Rhat (a, b): {bayes_res['Rhat']}<br> ")
         #html.append(f"{bayes_res.get('mcmc_summary','')}<br> ") 
+
+    import corner
+    #target_key = display_options[selected_substance_name]
+    #result = st.session_state["bayes_results"][target_key]
+    samples = bayes_res["samples"]
+    # Corner plot
+    figure = corner.corner(samples, labels=["a", "b"])
+
+    # 保存
+    #corner_path = f"outputs/plots_regression/{safe_f_substance}_corner.png"
+    #figure.savefig(corner_path, dpi=150, bbox_inches="tight")
+    #plt.close(figure)
+
+    # Base64 化
+    #corner_b64 = img_to_base64(corner_path)
+
+    # HTML に埋め込み
+    html.append("<h2>Corner Plot</h2>")
+    #html.append(f"<img src='data:image/png;base64,{corner_b64}' width='600'><br><br>")
+    #however, if you want to avoid saving the corner plot to disk and directly embed it in the HTML, you can use an in-memory buffer. Here's how you can do that:
+    buf = io.BytesIO()
+    figure.savefig(buf, format="png", bbox_inches="tight")
+    plt.close(figure)
+
+    corner_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+    html.append(f"<img src='data:image/png;base64,{corner_b64}' width='600'><br><br>")
+
+    corr = np.corrcoef(samples[:,0], samples[:,1])[0,1]
+    html.append(f"Correlation(a, b): {corr:.3f}<br>")
+
+    html.append("<table>")
+    html.append("<tr><th>Parameter</th><th>Mean</th><th>95% CI</th></tr>")
+    html.append(f"<tr><td>a</td><td>{bayes_res['a_mean']:.4f}</td><td>{bayes_res['ci_a'][1]:.4f} – {bayes_res['ci_a'][0]:.4f}</td></tr>")
+    html.append(f"<tr><td>b</td><td>{bayes_res['b_mean']:.4f}</td><td>{bayes_res['ci_b'][1]:.4f} – {bayes_res['ci_b'][0]:.4f}</td></tr>")
+    html.append("</table>")
 
 
     # --- TIによるモデル比較 ---
@@ -1440,14 +1493,18 @@ def generate_html_report(df, ols_res, mle_res, bayes_res, ti_res, plot_path, out
             "E_logL": "{:.2f}".format,
             "var_logL": "{:.2e}".format,
         }))
-
+    else:
+        html.append("<h2>TI (Thermodynamic Integration) results are not available.</h2>")
+        
 
     html.append("</body></html>")
-    #Rhatでcausion
-
+    
     Path(out_path).write_text("\n".join(html), encoding="utf-8")
+
+    """   
     file_name =safe_f_substance.split("_",1)[0]
     substance =safe_f_substance.split("_",1)[1]
+   
     fig, plot_path = plot_regression_results(
         df,
         substance,
@@ -1458,10 +1515,10 @@ def generate_html_report(df, ols_res, mle_res, bayes_res, ti_res, plot_path, out
         bayes_res,
     )
 
-    st.pyplot(fig)
+    #st.pyplot(fig) 
 
     plt.close(fig)    
-
+    """
     return out_path
 
 def plot_regression_results(
@@ -1552,6 +1609,7 @@ def plot_regression_results(
     )
 
     return fig, plot_path
+
 """#
 fig, plot_path = plot_regression_results(
     df,
@@ -1567,3 +1625,96 @@ st.pyplot(fig)
 
 plt.close(fig)
 """
+
+# --- 関数の定義 信頼区間付き　---
+def plot_regression_results2(
+    df,
+    substance,
+    file_name,
+    safe_f_substance,
+    ols_result,
+    mle_result,
+    bayes_result,
+):
+    x = df["year"].values
+    y = df["log_conc"].values
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    # 1. 観測データの散布図
+    ax.scatter(x, y, s=15, alpha=0.5, color="gray", label="Data")
+
+    # 描画用の連続したx軸データを生成
+    x_grid = np.linspace(x.min(), x.max(), 200)
+    x_mean = x.mean()
+
+    # 2. OLS
+    if ols_result:
+        a_ols = ols_result.get("ols_a1") or ols_result.get("slope_ols")
+        b_ols = ols_result.get("ols_b1") or ols_result.get("intercept_ols")
+        if a_ols is not None and b_ols is not None:
+            y_ols = a_ols * (x_grid - x_mean) + b_ols
+            ax.plot(
+                x_grid, y_ols, color="green", linestyle="--", label="OLS"
+            )
+
+    # 3. MLE
+    if mle_result:
+        a_mle = mle_result.get("slope_mle")
+        b_mle = mle_result.get("intercept_mle")
+        if a_mle is not None and b_mle is not None:
+            y_mle = a_mle * (x_grid - x_mean) + b_mle
+            ax.plot(
+                x_grid, y_mle, color="orange", linestyle="-.", label="MLE"
+            )
+
+    # 4. Bayes (点推定 + 事後サンプルがある場合は 95% 信用区間)
+    if bayes_result:
+        a_bayes = bayes_result.get("a_mean")
+        b_bayes = bayes_result.get("b_mean")
+
+        if a_bayes is not None and b_bayes is not None:
+            y_bayes = a_bayes * (x_grid - x_mean) + b_bayes
+            ax.plot(
+                x_grid,
+                y_bayes,
+                color="red",
+                linewidth=2,
+                label="Bayes (Mean)",
+            )
+
+            # サンプル配列が存在する場合は 95% 信用区間を描画
+            if "samples" in bayes_result:
+                samples = bayes_result["samples"]
+                a_samples = samples[:, 0]
+                b_samples = samples[:, 1]
+
+                lines = (
+                    a_samples[:, None] * (x_grid - x_mean)
+                    + b_samples[:, None]
+                )
+                low = np.percentile(lines, 2.5, axis=0)
+                high = np.percentile(lines, 97.5, axis=0)
+
+                ax.fill_between(
+                    x_grid,
+                    low,
+                    high,
+                    color="red",
+                    alpha=0.15,
+                    label="95% Credible Interval",
+                )
+
+    ax.set_xlabel("Year")
+    ax.set_ylabel("log(Concentration)")
+    ax.set_title(f"{file_name}: {substance}")
+    ax.legend(loc="best")
+    ax.grid(True, linestyle=":", alpha=0.6)
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.makedirs("outputs/plots_regression", exist_ok=True)
+    plot_path = f"plots_regression/{safe_f_substance}_regression_{timestamp}.png"
+
+    fig.savefig(f"outputs/{plot_path}", dpi=150, bbox_inches="tight")
+
+    return fig, plot_path
