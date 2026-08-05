@@ -28,7 +28,7 @@ def neg_log_likelihood(params, x, y):
         # kdeの計算が失敗した場合、大きな負の対数尤度を返す
         return 1e10
 
-def run_mle_and_aic(df):
+def run_mle_and_aic_old(df):
     """最尤推定を実行し、その結果からAICと事後確率を算出"""
     x = df['調査年度'].values
     y = df['log_conc'].values
@@ -80,3 +80,81 @@ def run_mle_and_aic(df):
 
 
     return a1, b1, aic0, aic1, p1
+#import numpy as np
+#from scipy.optimize import minimize
+#from scipy.stats import gaussian_kde
+
+def run_mle_and_aic(df, n_bootstraps=1000, ci_level=0.95):
+    """最尤推定を実行し、AIC、事後確率、ブートストラップ法による信頼区間を算出"""
+    x = df['調査年度'].values
+    y = df['log_conc'].values
+
+    # --- 1. 元データでの1次式MLE ---
+    result = minimize(neg_log_likelihood, [-0.1, np.mean(y)], args=(x, y), method='L-BFGS-B')
+    a1, b1 = result.x
+    max_log_likelihood_1 = -result.fun
+
+    # --- 2. 元データでの0次式MLE ---
+    def neg_log_likelihood_0(params, x, y):
+        b0 = params[0]
+        residuals = y - b0
+        try:
+            kde = gaussian_kde(residuals)
+            log_likelihood = np.sum(np.log(kde.pdf(residuals) + 1e-10))
+            return -log_likelihood
+        except np.linalg.LinAlgError:
+            return 1e10
+
+    result_0 = minimize(neg_log_likelihood_0, [np.mean(y)], args=(x, y), method='L-BFGS-B')
+    max_log_likelihood_0 = -result_0.fun
+
+    # --- 3. AIC & 事後確率の算出 ---
+    aic1 = -2 * max_log_likelihood_1 + 2 * 2
+    aic0 = -2 * max_log_likelihood_0 + 2 * 1
+
+    delta_aic = aic1 - aic0
+    numerator = np.exp(-0.5 * delta_aic)
+    denominator = 1 + numerator
+
+    if denominator == 0:
+        p1 = 0.0 if delta_aic > 0 else 1.0
+    else:
+        p1 = numerator / denominator
+
+    # --- 4. ノンパラメトリック・ブートストラップ法による a1 の 95% 信頼区間 ---
+    a1_boot = []
+    n_samples = len(df)
+    
+    # 乱数シードの設定（再現性確保のため必要に応じて有効化）
+    # np.random.seed(42)
+
+    for _ in range(n_bootstraps):
+        # データのペア (x, y) を重複を許してリサンプリング
+        indices = np.random.choice(n_samples, size=n_samples, replace=True)
+        x_resample = x[indices]
+        y_resample = y[indices]
+
+        try:
+            res_boot = minimize(
+                neg_log_likelihood, 
+                [a1, b1],  # 初期値は元の推定値を利用して収束を高速化
+                args=(x_resample, y_resample), 
+                method='L-BFGS-B'
+            )
+            if res_boot.success:
+                a1_boot.append(res_boot.x[0])
+        except Exception:
+            continue
+
+    # パーセンタイル法による信頼区間の算出
+    alpha = 1.0 - ci_level
+    lower_percentile = (alpha / 2.0) * 100
+    upper_percentile = (1.0 - alpha / 2.0) * 100
+
+    if len(a1_boot) > 0:
+        a1_ci_lower = np.percentile(a1_boot, lower_percentile)
+        a1_ci_upper = np.percentile(a1_boot, upper_percentile)
+    else:
+        a1_ci_lower, a1_ci_upper = np.nan, np.nan
+
+    return a1, b1, aic0, aic1, p1, a1_ci_lower, a1_ci_upper

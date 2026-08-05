@@ -176,7 +176,7 @@ def run_mle_and_aic(df, x_col='year', y_col='log_conc'):
     safe_f_substance =df["safe_f_substance"].iloc[0]
     substance =df["substance"].iloc[0]
     try:
-        a, b, aic0, aic1, p1, x_base, linear_validity, b1_corrected = run_mle_and_aic_simple(df)
+        a, b, aic0, aic1, p1, x_base, linear_validity, b1_corrected, a1_ci_lower, a1_ci_upper     = run_mle_and_aic_simple(df)
     except Exception as e:
         return {"error": f"MLE 実行中にエラー: {e}"}
 
@@ -193,6 +193,8 @@ def run_mle_and_aic(df, x_col='year', y_col='log_conc'):
         "p_linear": p1,
         "linear_validity": linear_validity,
         "intercept_b1_corrected": b1_corrected,
+        "a1_ci_lower": a1_ci_lower,
+        "a1_ci_upper": a1_ci_upper,
         #"Rhat":rhat
     }
 
@@ -414,8 +416,330 @@ def tempered_log_posterior_old(
     else:
         raise ValueError(f"Unknown model_type: {model_type}")
 
+
+#import numpy as np
+#from scipy.optimize import minimize
+#from scipy.stats import gaussian_kde
+
+def run_mle_and_aic_simple(df, max_iter=20, tolerance=1e-5, n_bootstraps=1000, ci_level=0.95):
+    np.set_printoptions(precision=10, suppress=True)
     
-def run_mle_and_aic_simple(df, max_iter=20, tolerance=1e-6):
+    # 【重要】Pandas Series から純粋な NumPy 1次元配列(float64)へ確実に変換
+    x_raw = np.asarray(df['year'].values, dtype=np.float64)
+    y = np.asarray(df['log_conc'].values, dtype=np.float64)
+    
+    x_base = np.mean(x_raw)
+    x_centered = x_raw - x_base
+    n_data = len(y)
+    
+    # --- 1. 元データでの最適化 (1回のみ実行) ---
+    a_curr, b_curr = np.polyfit(x_centered, y, 1)
+    kde_final = None
+    max_log_likelihood_1 = -np.inf
+
+    for i in range(max_iter):
+        residuals = y - (a_curr * x_centered + b_curr)
+        try:
+            kde_final = gaussian_kde(residuals)
+        except np.linalg.LinAlgError as e:
+            print(f"KDE Construction Error in Loop {i}: {e}")
+            break
+            
+        def neg_log_likelihood_fixed(params, x_in, y_in):
+            return neg_log_likelihood_1(params, x_in, y_in, kde_final)
+
+        result = minimize(
+            neg_log_likelihood_fixed, 
+            [a_curr, b_curr], 
+            args=(x_centered, y), 
+            method='L-BFGS-B',
+            options={'maxfun': 100}
+        )
+        
+        a_new, b_new = result.x
+        max_log_likelihood_1 = -result.fun
+        
+        param_change = np.linalg.norm(np.array([a_new, b_new]) - np.array([a_curr, b_curr]))
+        if param_change < tolerance:
+            a1, b1 = a_new, b_new
+            break
+        a_curr, b_curr = a_new, b_new
+    else:
+        a1, b1 = a_curr, b_curr
+
+    # --- 2. 定数モデル M0 の推定 ---
+    try:
+        result_0 = minimize(neg_log_likelihood_0, [np.mean(y)], args=(x_centered, y), method='L-BFGS-B')
+        max_log_likelihood_0 = -result_0.fun
+    except Exception as e:
+        print(f"M0 Optimization Error: {e}")
+        return np.nan, np.nan, np.nan, np.nan, np.nan, x_base, False, np.nan, np.nan, np.nan
+
+    # --- 3. AIC & P1 ---
+    aic1 = -2 * max_log_likelihood_1 + 2 * 2
+    aic0 = -2 * max_log_likelihood_0 + 2 * 1
+    delta_aic = aic1 - aic0
+    numerator = np.exp(-0.5 * delta_aic)
+    denominator = 1 + numerator
+    p1 = numerator / denominator if denominator != 0 else (0.0 if delta_aic > 0 else 1.0)
+    linear_validity = bool((p1 > 0.95) and (a1 < 0))
+
+    # --- 4. ブートストラップ（確実に計算を完遂させる安全実装） ---
+    a1_ci_lower, a1_ci_upper = np.nan, np.nan
+
+    if kde_final is not None:
+        try:
+            # 1. 疑似残差の生成: shape (n_bootstraps, n_data)
+            resamp = kde_final.resample(n_data * n_bootstraps) # (1, N*B)
+            sim_residuals = resamp.reshape(n_bootstraps, n_data)
+            
+            # 2. 予測値 (n_data,)
+            y_pred = a1 * x_centered + b1
+            
+            # 3. 疑似データ (n_bootstraps, n_data)
+            y_sim = y_pred + sim_residuals
+            
+            # 4. 回帰係数の計算（行列計算）
+            # x_centered の2乗和
+            x_ss = np.sum(x_centered ** 2)
+            
+            # y_sim の各行の平均を引いて中心化
+            y_sim_centered = y_sim - np.mean(y_sim, axis=1, keepdims=True)
+            
+            # 各ブートストラップでの傾き a1_boot
+            a1_boot = np.dot(y_sim_centered, x_centered) / x_ss  # (n_bootstraps,)
+
+            # 5. パーセンタイル信頼区間
+            alpha = 1.0 - ci_level
+            a1_ci_lower = float(np.percentile(a1_boot, (alpha / 2.0) * 100))
+            a1_ci_upper = float(np.percentile(a1_boot, (1.0 - alpha / 2.0) * 100))
+
+        except Exception as e:
+            # どこで失敗したのかを特定するためのプリント文
+            print(f"Bootstrap Calculation Error: {e}")
+
+    else:
+        print("Warning: kde_final is None. Skipping Bootstrap.")
+
+    return a1, b1, aic0, aic1, p1, x_base, linear_validity, b1, a1_ci_lower, a1_ci_upper
+def run_mle_and_aic_simple_fast(df, max_iter=20, tolerance=1e-5, n_bootstraps=100, ci_level=0.95):
+    np.set_printoptions(precision=10, suppress=True)
+    x_raw = df['year'].values
+    x_base = x_raw.mean()
+    x_centered = x_raw - x_base
+    y = df['log_conc'].values
+    n_data = len(y)
+    
+    # --- 内部関数: L-BFGS-B に安全装置 (options) を付与 ---
+    def _fit_iterative_mle(x_c, y_data, init_a=None, init_b=None, is_bootstrap=False):
+        if init_a is None or init_b is None:
+            a_curr, b_curr = np.polyfit(x_c, y_data, 1)
+        else:
+            a_curr, b_curr = init_a, init_b
+
+        max_ll1 = -np.inf
+        # ブートストラップ時はループ回数を減らして超高速化
+        current_max_iter = 3 if is_bootstrap else max_iter
+        
+        for i in range(current_max_iter):
+            residuals = y_data - (a_curr * x_c + b_curr)
+            try:
+                kde_new = gaussian_kde(residuals)
+            except np.linalg.LinAlgError:
+                break
+                
+            def neg_log_likelihood_fixed(params, x_in, y_in):
+                return neg_log_likelihood_1(params, x_in, y_in, kde_new)
+
+            # 【重要】options で内部の最大評価回数を制限し、フリーズを防止
+            result = minimize(
+                neg_log_likelihood_fixed, 
+                [a_curr, b_curr], 
+                args=(x_c, y_data), 
+                method='L-BFGS-B',
+                options={'maxfun': 100, 'maxiter': 50, 'ftol': 1e-5}
+            )
+            
+            if not result.success and not is_bootstrap:
+                # 失敗しても得られた値を評価
+                pass
+                
+            a_new, b_new = result.x
+            max_ll1 = -result.fun
+            
+            param_change = np.linalg.norm(np.array([a_new, b_new]) - np.array([a_curr, b_curr]))
+            if param_change < tolerance:
+                return a_new, b_new, max_ll1
+            
+            a_curr, b_curr = a_new, b_new
+            
+        return a_curr, b_curr, max_ll1
+
+    # 1. 元データでの点推定
+    a1, b1, max_log_likelihood_1 = _fit_iterative_mle(x_centered, y)
+
+    # 2. 定数モデル M0 の推定 (同様に safe_options を指定)
+    try:
+        result_0 = minimize(
+            neg_log_likelihood_0, 
+            [np.mean(y)], 
+            args=(x_centered, y), 
+            method='L-BFGS-B',
+            options={'maxfun': 100, 'maxiter': 50}
+        )
+        max_log_likelihood_0 = -result_0.fun
+    except Exception:
+        return np.nan, np.nan, np.nan, np.nan, np.nan, x_base, False, np.nan, np.nan, np.nan
+
+    # 3. AIC & P1
+    aic1 = -2 * max_log_likelihood_1 + 2 * 2
+    aic0 = -2 * max_log_likelihood_0 + 2 * 1
+    delta_aic = aic1 - aic0
+    numerator = np.exp(-0.5 * delta_aic)
+    denominator = 1 + numerator
+    p1 = numerator / denominator if denominator != 0 else (0.0 if delta_aic > 0 else 1.0)
+    linear_validity = bool((p1 > 0.95) and (a1 < 0))
+
+    # 4. 超高速化ブートストラップ
+    a1_boot = []
+    for _ in range(n_bootstraps):
+        boot_idx = np.random.choice(n_data, size=n_data, replace=True)
+        x_boot_c = x_centered[boot_idx]
+        y_boot = y[boot_idx]
+
+        try:
+            # 元データの (a1, b1) を初期値として与え、1〜3回の反復でサクッと計算を完了させる
+            a1_b, _, max_ll_b = _fit_iterative_mle(
+                x_boot_c, y_boot, init_a=a1, init_b=b1, is_bootstrap=True
+            )
+            if not np.isinf(max_ll_b) and not np.isnan(a1_b):
+                a1_boot.append(a1_b)
+        except Exception:
+            continue
+
+    alpha = 1.0 - ci_level
+    if len(a1_boot) > 5:  # 最低限のサンプルが集まっていれば計算
+        a1_ci_lower = np.percentile(a1_boot, (alpha / 2.0) * 100)
+        a1_ci_upper = np.percentile(a1_boot, (1.0 - alpha / 2.0) * 100)
+    else:
+        a1_ci_lower, a1_ci_upper = np.nan, np.nan
+
+    return a1, b1, aic0, aic1, p1, x_base, linear_validity, b1, a1_ci_lower, a1_ci_upper
+
+def run_mle_and_aic_simple_slow(df, max_iter=20, tolerance=1e-6, n_bootstraps=100, ci_level=0.95):
+    """
+    最尤推定（反復KDE最適化）を実行し、AIC、事後確率、
+    およびブートストラップ法による a1 の 95% 信頼区間を算出
+    """
+    np.set_printoptions(precision=10, suppress=True)
+    x_raw = df['year'].values
+    x_base = x_raw.mean()
+    x_centered = x_raw - x_base
+    y = df['log_conc'].values
+    n_data = len(y)
+    
+    # -------------------------------------------------------------
+    # 単一のデータセットに対して反復MLEを実行する内部関数
+    # -------------------------------------------------------------
+    def _fit_iterative_mle(x_c, y_data):
+        a_curr, b_curr = np.polyfit(x_c, y_data, 1)
+        max_ll1 = -np.inf
+        
+        for i in range(max_iter):
+            residuals = y_data - (a_curr * x_c + b_curr)
+            try:
+                kde_new = gaussian_kde(residuals)
+            except np.linalg.LinAlgError:
+                break
+                
+            def neg_log_likelihood_fixed(params, x_in, y_in):
+                return neg_log_likelihood_1(params, x_in, y_in, kde_new)
+
+            result = minimize(
+                neg_log_likelihood_fixed, 
+                [a_curr, b_curr], 
+                args=(x_c, y_data), 
+                method='L-BFGS-B'
+            )
+            
+            if not result.success:
+                break
+                
+            a_new, b_new = result.x
+            max_ll1 = -result.fun
+            
+            param_change = np.linalg.norm(np.array([a_new, b_new]) - np.array([a_curr, b_curr]))
+            if param_change < tolerance:
+                return a_new, b_new, max_ll1
+            
+            a_curr, b_curr = a_new, b_new
+            
+        return a_curr, b_curr, max_ll1
+
+    # -------------------------------------------------------------
+    # 1. 元データでの点推定 (M1: 1次式モデル)
+    # -------------------------------------------------------------
+    a1, b1, max_log_likelihood_1 = _fit_iterative_mle(x_centered, y)
+
+    # -------------------------------------------------------------
+    # 2. 定数モデル M0 の推定
+    # -------------------------------------------------------------
+    try:
+        result_0 = minimize(neg_log_likelihood_0, [np.mean(y)], args=(x_centered, y), method='L-BFGS-B')
+        max_log_likelihood_0 = -result_0.fun
+    except Exception:
+        print("Failed to optimize the constant model.")
+        return np.nan, np.nan, np.nan, np.nan, np.nan, x_base, False, np.nan, np.nan, np.nan
+
+    # -------------------------------------------------------------
+    # 3. AICとP1の計算
+    # -------------------------------------------------------------
+    aic1 = -2 * max_log_likelihood_1 + 2 * 2
+    aic0 = -2 * max_log_likelihood_0 + 2 * 1
+    delta_aic = aic1 - aic0
+    numerator = np.exp(-0.5 * delta_aic)
+    denominator = 1 + numerator
+    p1 = numerator / denominator if denominator != 0 else (0.0 if delta_aic > 0 else 1.0)
+    
+    linear_validity = bool((p1 > 0.95) and (a1 < 0))
+    b1_corrected = b1  # x_base == x_raw.mean() のため b1 と同じ
+
+    # -------------------------------------------------------------
+    # 4. ノンパラメトリック・ブートストラップ法による 95% 信頼区間の算出
+    # -------------------------------------------------------------
+    a1_boot = []
+    
+    # 必要に応じてシード固定
+    # np.random.seed(42)
+
+    for _ in range(n_bootstraps):
+        # ペア・リサンプリング（インデックスを重複許可で抽出）
+        boot_idx = np.random.choice(n_data, size=n_data, replace=True)
+        x_boot_c = x_centered[boot_idx]
+        y_boot = y[boot_idx]
+
+        try:
+            a1_b, _, max_ll_b = _fit_iterative_mle(x_boot_c, y_boot)
+            if not np.isinf(max_ll_b):
+                a1_boot.append(a1_b)
+        except Exception:
+            continue
+
+    # パーセンタイル法による上下限の算出
+    alpha = 1.0 - ci_level
+    lower_p = (alpha / 2.0) * 100
+    upper_p = (1.0 - alpha / 2.0) * 100
+
+    if len(a1_boot) > 0:
+        a1_ci_lower = np.percentile(a1_boot, lower_p)
+        a1_ci_upper = np.percentile(a1_boot, upper_p)
+    else:
+        a1_ci_lower, a1_ci_upper = np.nan, np.nan
+
+    # 戻り値に a1_ci_lower, a1_ci_upper を追加
+    return a1, b1, aic0, aic1, p1, x_base, linear_validity, b1_corrected, a1_ci_lower, a1_ci_upper    
+
+def run_mle_and_aic_simple_old(df, max_iter=20, tolerance=1e-6):
     #st向けに改変
     np.set_printoptions(precision=10, suppress=True)
     x_raw = df['year'].values
@@ -1393,6 +1717,8 @@ def generate_html_report(df, ols_res, mle_res, bayes_res, ti_res, plot_path, out
     #if mle_res and safe_f_substance in st.session_state["mle_results"]:
         html.append("<h2>MLE + AIC (MOE-style)</h2>")
         html.append(f"Slope a: {mle_res['slope_mle']:.4f}<br>")
+
+        html.append(f"95% CI (a): [{mle_res['a1_ci_lower']:.4f}, {mle_res['a1_ci_upper']:.4f}]<br>")
         html.append(f"Intercept b (centered-x): {mle_res['intercept_mle']:.4f}<br>")
         html.append(f"AIC(Constant model): {mle_res['aic_const']:.2f}<br>")
         html.append(f"AIC(Linear model): {mle_res['aic_linear']:.2f}<br>")

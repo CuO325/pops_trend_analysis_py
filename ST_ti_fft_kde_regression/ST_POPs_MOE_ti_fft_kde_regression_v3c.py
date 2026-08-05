@@ -405,7 +405,11 @@ with main_tab2:
 
                 else:
                     st.error(f"ファイルが見つかりません: {path}")
-
+    #st.write("---")
+    st.markdown(
+    '<hr style="border: none; height: 4px; background-color: #333; margin: 20px 0;">',
+    unsafe_allow_html=True,
+)
     # --- 5. TI を含む全手法実行 ---
     st.subheader("3. 個別物質: Thermodynamic Integral (TI) & 全手法の一括解析 & HTMLレポート生成")
     st.caption("💡 選択された物質に対して Thermodynamic Integral (TI) を含む全手法を一括実行し、解析結果を **HTMLファイル** として自動保存します。")
@@ -464,6 +468,11 @@ with main_tab2:
         st.success(f"{(end_time - start_time).total_seconds()/60:.2f} min for n={len(target_list)} substance TI execution")
 
     # --- 6. HTML再生成 ---
+    st.markdown(
+    '<hr style="border: none; height: 4px; background-color: #333; margin: 20px 0;">',
+    unsafe_allow_html=True,
+    )
+
     st.subheader("4. 個別物質: HTMLレポートの生成")
     st.caption("💡 既に実行された OLS / MLE / ベイズ  / TI の解析結果を **HTMLファイル** として保存します。")
     html_options = set()
