@@ -31,6 +31,16 @@ from statsmodels.stats.diagnostic import het_breuschpagan, acorr_ljungbox
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from scipy.stats import jarque_bera, skew, kurtosis
 
+import io
+import base64
+
+def fig_to_base64(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode("utf-8")
+
+
 def evaluate_ols_model(model, X, y):
     #results = model.fit()
     results = model
@@ -176,7 +186,7 @@ def run_mle_and_aic(df, x_col='year', y_col='log_conc'):
     safe_f_substance =df["safe_f_substance"].iloc[0]
     substance =df["substance"].iloc[0]
     try:
-        a, b, aic0, aic1, p1, x_base, linear_validity, b1_corrected, a1_ci_lower, a1_ci_upper     = run_mle_and_aic_simple(df)
+        a, b, aic0, aic1, p1, x_base, linear_validity, b1_corrected, a1_ci_lower, a1_ci_upper, b1_ci_lower, b1_ci_upper     = run_mle_and_aic_simple(df)
     except Exception as e:
         return {"error": f"MLE 実行中にエラー: {e}"}
 
@@ -195,6 +205,8 @@ def run_mle_and_aic(df, x_col='year', y_col='log_conc'):
         "intercept_b1_corrected": b1_corrected,
         "a1_ci_lower": a1_ci_lower,
         "a1_ci_upper": a1_ci_upper,
+        "b1_ci_lower": b1_ci_lower,
+        "b1_ci_upper": b1_ci_upper,
         #"Rhat":rhat
     }
 
@@ -420,8 +432,123 @@ def tempered_log_posterior_old(
 #import numpy as np
 #from scipy.optimize import minimize
 #from scipy.stats import gaussian_kde
-
 def run_mle_and_aic_simple(df, max_iter=20, tolerance=1e-5, n_bootstraps=1000, ci_level=0.95):
+    np.set_printoptions(precision=10, suppress=True)
+    
+    x_raw = np.asarray(df['year'].values, dtype=np.float64)
+    y = np.asarray(df['log_conc'].values, dtype=np.float64)
+    
+    x_base = np.mean(x_raw)
+    x_centered = x_raw - x_base
+    n_data = len(y)
+    
+    # --- 1. 元データでの最適化 ---
+    a_curr, b_curr = np.polyfit(x_centered, y, 1)
+    kde_final = None
+    max_log_likelihood_1 = -np.inf
+
+    for i in range(max_iter):
+        residuals = y - (a_curr * x_centered + b_curr)
+        try:
+            kde_final = gaussian_kde(residuals)
+        except np.linalg.LinAlgError as e:
+            print(f"KDE Construction Error in Loop {i}: {e}")
+            break
+            
+        def neg_log_likelihood_fixed(params, x_in, y_in):
+            return neg_log_likelihood_1(params, x_in, y_in, kde_final)
+
+        result = minimize(
+            neg_log_likelihood_fixed, 
+            [a_curr, b_curr], 
+            args=(x_centered, y), 
+            method='L-BFGS-B',
+            options={'maxfun': 100}
+        )
+        
+        a_new, b_new = result.x
+        max_log_likelihood_1 = -result.fun
+        
+        param_change = np.linalg.norm(np.array([a_new, b_new]) - np.array([a_curr, b_curr]))
+        if param_change < tolerance:
+            a1, b1 = a_new, b_new
+            break
+        a_curr, b_curr = a_new, b_new
+    else:
+        a1, b1 = a_curr, b_curr
+
+    # --- 2. 定数モデル M0 ---
+    try:
+        result_0 = minimize(neg_log_likelihood_0, [np.mean(y)], args=(x_centered, y), method='L-BFGS-B')
+        max_log_likelihood_0 = -result_0.fun
+    except Exception as e:
+        print(f"M0 Optimization Error: {e}")
+        return np.nan, np.nan, np.nan, np.nan, np.nan, x_base, False, np.nan, np.nan, np.nan, np.nan, np.nan
+
+    # --- 3. AIC & P1 ---
+    aic1 = -2 * max_log_likelihood_1 + 2 * 2
+    aic0 = -2 * max_log_likelihood_0 + 2 * 1
+    delta_aic = aic1 - aic0
+    numerator = np.exp(-0.5 * delta_aic)
+    denominator = 1 + numerator
+    p1 = numerator / denominator if denominator != 0 else (0.0 if delta_aic > 0 else 1.0)
+    linear_validity = bool((p1 > 0.95) and (a1 < 0))
+
+    # --- 4. ブートストラップ（a1 と b1 の CI を計算） ---
+    a1_ci_lower, a1_ci_upper = np.nan, np.nan
+    b1_ci_lower, b1_ci_upper = np.nan, np.nan
+
+    if kde_final is not None:
+        try:
+            # 疑似残差
+            #resamp = kde_final.resample(n_data * n_bootstraps)
+            #sim_residuals = resamp.reshape(n_bootstraps, n_data)
+            sim_residuals = np.random.choice(residuals, size=(n_bootstraps, n_data), replace=True)  #残差を単純に再標本化（residual bootstrap）            
+            # 予測値
+            y_pred = a1 * x_centered + b1
+            
+            # 疑似データ
+            y_sim = y_pred + sim_residuals
+            
+            # x の統計量
+            x_ss = np.sum(x_centered ** 2)
+            x_mean = 0.0  # x_centered は平均 0
+            
+            # y の中心化 #x_centered は 平均 0 なので y を中心化する必要がない。
+            #y_sim_mean = np.mean(y_sim, axis=1, keepdims=True)
+            #y_sim_centered = y_sim - y_sim_mean
+            # --- 傾き a1_boot ---
+            #a1_boot = np.dot(y_sim_centered, x_centered) / x_ss
+
+            a1_boot = np.dot(y_sim, x_centered) / x_ss
+
+            # --- 切片 b1_boot ---
+            # b = mean(y) - a * mean(x) だが mean(x)=0 なので b = mean(y)
+            #b1_boot = y_sim_mean.flatten()
+            b1_boot = b1 + np.mean(sim_residuals, axis=1)
+
+            # CI（パーセンタイル法）
+            alpha = 1.0 - ci_level
+            a1_ci_lower = float(np.percentile(a1_boot, (alpha / 2.0) * 100))
+            a1_ci_upper = float(np.percentile(a1_boot, (1.0 - alpha / 2.0) * 100))
+
+            b1_ci_lower = float(np.percentile(b1_boot, (alpha / 2.0) * 100))
+            b1_ci_upper = float(np.percentile(b1_boot, (1.0 - alpha / 2.0) * 100))
+
+        except Exception as e:
+            print(f"Bootstrap Calculation Error: {e}")
+
+    else:
+        print("Warning: kde_final is None. Skipping Bootstrap.")
+
+    return (
+        a1, b1, aic0, aic1, p1, x_base, linear_validity,
+        b1,  # 重複
+        a1_ci_lower, a1_ci_upper,
+        b1_ci_lower, b1_ci_upper
+    )
+
+def run_mle_and_aic_simple_ci_a_only(df, max_iter=20, tolerance=1e-5, n_bootstraps=1000, ci_level=0.95):
     np.set_printoptions(precision=10, suppress=True)
     
     # 【重要】Pandas Series から純粋な NumPy 1次元配列(float64)へ確実に変換
@@ -491,8 +618,9 @@ def run_mle_and_aic_simple(df, max_iter=20, tolerance=1e-5, n_bootstraps=1000, c
         try:
             # 1. 疑似残差の生成: shape (n_bootstraps, n_data)
             resamp = kde_final.resample(n_data * n_bootstraps) # (1, N*B)
-            sim_residuals = resamp.reshape(n_bootstraps, n_data)
-            
+            #sim_residuals = resamp.reshape(n_bootstraps, n_data)   #KDE からサンプリングする必要は本質的にはない。
+            sim_residuals = np.random.choice(residuals, size=(n_bootstraps, n_data), replace=True)  #残差を単純に再標本化（residual bootstrap）
+
             # 2. 予測値 (n_data,)
             y_pred = a1 * x_centered + b1
             
@@ -1541,6 +1669,9 @@ def run_ti(df, cfg, safe_f_substance, x_col='year', y_col='log_conc',
         #fig_rhat.savefig(f"outputs/ti/{cfg_name}_{df['safe_substance'].iloc[0]}_rhat_plot.png", dpi=300, bbox_inches="tight")
         fig_elogl.savefig(f"outputs/ti/{cfg_name}_{safe_f_substance}_elogl_plot.png", dpi=300, bbox_inches="tight")
         fig_rhat.savefig(f"outputs/ti/{cfg_name}_{safe_f_substance}_rhat_plot.png", dpi=300, bbox_inches="tight")
+        # --- TI グラフを Base64 に変換 ---
+        elogl_base64 = fig_to_base64(fig_elogl)
+        rhat_base64 = fig_to_base64(fig_rhat)        
 
         return {
 
@@ -1567,6 +1698,9 @@ def run_ti(df, cfg, safe_f_substance, x_col='year', y_col='log_conc',
             "ti_records_linear": ti_records_linear,
             "ti_records_const": ti_records_const,
             "cfg": cfg,
+            #セッションに保存すると壊れる?
+            "elogl_base64": elogl_base64,
+            "rhat_base64": rhat_base64,
         }
 
     except Exception as e:
@@ -1648,7 +1782,7 @@ import os
 from pathlib import Path
 import base64
 def generate_html_report(df, ols_res, mle_res, bayes_res, ti_res, plot_path, out_path, safe_f_substance):
-
+    #st.write("DEBUG get ti_result keys:", ti_res.keys())
     # --- 画像を Base64 に変換 ---
     def img_to_base64(path):
         print("Converting image to Base64:", path)
@@ -1711,7 +1845,8 @@ def generate_html_report(df, ols_res, mle_res, bayes_res, ti_res, plot_path, out
         html.append(f"R²: {ols_res['r2_ols']:.4f}<br>") 
        
         html.append(f"summary {safe_f_substance}: {ols_res['summary_html']}<br>")     
-
+    else:
+        html.append("<h3>* OLS results are not available.</h3>")
     # --- MLE ---
     if mle_res and ("slope_mle" in mle_res)  and mle_res.get("safe_f_substance") == safe_f_substance:
     #if mle_res and safe_f_substance in st.session_state["mle_results"]:
@@ -1720,10 +1855,12 @@ def generate_html_report(df, ols_res, mle_res, bayes_res, ti_res, plot_path, out
 
         html.append(f"95% CI (a): [{mle_res['a1_ci_lower']:.4f}, {mle_res['a1_ci_upper']:.4f}]<br>")
         html.append(f"Intercept b (centered-x): {mle_res['intercept_mle']:.4f}<br>")
+        html.append(f"95% CI (b): [{mle_res['b1_ci_lower']:.4f}, {mle_res['b1_ci_upper']:.4f}]<br>")
         html.append(f"AIC(Constant model): {mle_res['aic_const']:.2f}<br>")
         html.append(f"AIC(Linear model): {mle_res['aic_linear']:.2f}<br>")
         html.append(f"Akaike weight for linear model: {mle_res['p_linear']:.3f}<br>")
-     
+    else:
+        html.append("<h3>* MLE results are not available.</h3>")
     # --- Bayes ---
     #if bayes_res:
     if bayes_res and  bayes_res.get("safe_f_substance") == safe_f_substance:
@@ -1740,41 +1877,42 @@ def generate_html_report(df, ols_res, mle_res, bayes_res, ti_res, plot_path, out
         html.append(f"Rhat (a, b): {bayes_res['Rhat']}<br> ")
         #html.append(f"{bayes_res.get('mcmc_summary','')}<br> ") 
 
-    import corner
-    #target_key = display_options[selected_substance_name]
-    #result = st.session_state["bayes_results"][target_key]
-    samples = bayes_res["samples"]
-    # Corner plot
-    figure = corner.corner(samples, labels=["a", "b"])
+        import corner
+        #target_key = display_options[selected_substance_name]
+        #result = st.session_state["bayes_results"][target_key]
+        samples = bayes_res["samples"]
+        # Corner plot
+        figure = corner.corner(samples, labels=["a", "b"])
 
-    # 保存
-    #corner_path = f"outputs/plots_regression/{safe_f_substance}_corner.png"
-    #figure.savefig(corner_path, dpi=150, bbox_inches="tight")
-    #plt.close(figure)
+        # 保存
+        #corner_path = f"outputs/plots_regression/{safe_f_substance}_corner.png"
+        #figure.savefig(corner_path, dpi=150, bbox_inches="tight")
+        #plt.close(figure)
 
-    # Base64 化
-    #corner_b64 = img_to_base64(corner_path)
+        # Base64 化
+        #corner_b64 = img_to_base64(corner_path)
 
-    # HTML に埋め込み
-    html.append("<h2>Corner Plot</h2>")
-    #html.append(f"<img src='data:image/png;base64,{corner_b64}' width='600'><br><br>")
-    #however, if you want to avoid saving the corner plot to disk and directly embed it in the HTML, you can use an in-memory buffer. Here's how you can do that:
-    buf = io.BytesIO()
-    figure.savefig(buf, format="png", bbox_inches="tight")
-    plt.close(figure)
+        # HTML に埋め込み
+        html.append("<h2>Corner Plot</h2>")
+        #html.append(f"<img src='data:image/png;base64,{corner_b64}' width='600'><br><br>")
+        #however, if you want to avoid saving the corner plot to disk and directly embed it in the HTML, you can use an in-memory buffer. Here's how you can do that:
+        buf = io.BytesIO()
+        figure.savefig(buf, format="png", bbox_inches="tight")
+        plt.close(figure)
 
-    corner_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-    html.append(f"<img src='data:image/png;base64,{corner_b64}' width='600'><br><br>")
+        corner_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+        html.append(f"<img src='data:image/png;base64,{corner_b64}' width='600'><br><br>")
 
-    corr = np.corrcoef(samples[:,0], samples[:,1])[0,1]
-    html.append(f"Correlation(a, b): {corr:.3f}<br>")
+        corr = np.corrcoef(samples[:,0], samples[:,1])[0,1]
+        html.append(f"Correlation(a, b): {corr:.3f}<br>")
 
-    html.append("<table>")
-    html.append("<tr><th>Parameter</th><th>Mean</th><th>95% CI</th></tr>")
-    html.append(f"<tr><td>a</td><td>{bayes_res['a_mean']:.4f}</td><td>{bayes_res['ci_a'][1]:.4f} – {bayes_res['ci_a'][0]:.4f}</td></tr>")
-    html.append(f"<tr><td>b</td><td>{bayes_res['b_mean']:.4f}</td><td>{bayes_res['ci_b'][1]:.4f} – {bayes_res['ci_b'][0]:.4f}</td></tr>")
-    html.append("</table>")
-
+        html.append("<table>")
+        html.append("<tr><th>Parameter</th><th>Mean</th><th>95% CI</th></tr>")
+        html.append(f"<tr><td>a</td><td>{bayes_res['a_mean']:.4f}</td><td>{bayes_res['ci_a'][1]:.4f} – {bayes_res['ci_a'][0]:.4f}</td></tr>")
+        html.append(f"<tr><td>b</td><td>{bayes_res['b_mean']:.4f}</td><td>{bayes_res['ci_b'][1]:.4f} – {bayes_res['ci_b'][0]:.4f}</td></tr>")
+        html.append("</table>")
+    else:
+        html.append("<h3>* Bayesian results are not available.</h3>")
 
     # --- TIによるモデル比較 ---
     if ti_res is not None:
@@ -1807,8 +1945,14 @@ def generate_html_report(df, ols_res, mle_res, bayes_res, ti_res, plot_path, out
         html.append(rhat_dict_to_html(eval_rhat))
         #html.append(f"Rhat評価: {eval_rhat}<br>")
         #plotを追加
-        html.append(f"<img src='ti/{cfg_name}_{df['safe_f_substance'].iloc[0]}_elogl_plot.png' width='600'><br><br>")
-        html.append(f"<img src='ti/{cfg_name}_{df['safe_f_substance'].iloc[0]}_rhat_plot.png' width='600'><br><br>")
+        #html.append(f"<img src='ti/{cfg_name}_{df['safe_f_substance'].iloc[0]}_elogl_plot.png' width='600'><br><br>")
+        #html.append(f"<img src='ti/{cfg_name}_{df['safe_f_substance'].iloc[0]}_rhat_plot.png' width='600'><br><br>")
+
+        #print("DEBUG generate_html_report keys:", ti_res.keys())
+        #print("DEBUG ti_res['elogl_base64']:", ti_res['elogl_base64'][:30], "...")  # Base64の先頭部分を表示
+        html.append(f"<img src='data:image/png;base64,{ti_res['elogl_base64']}' width='600'><br><br>")
+        html.append(f"<img src='data:image/png;base64,{ti_res['rhat_base64']}' width='600'><br><br>")
+
         html.append("<h3>TI β–E[logL] (linear model)</h3>")
         html.append(df_lin.to_html(index=False,formatters={
             "E_logL": "{:.2f}".format,
@@ -1820,8 +1964,7 @@ def generate_html_report(df, ols_res, mle_res, bayes_res, ti_res, plot_path, out
             "var_logL": "{:.2e}".format,
         }))
     else:
-        html.append("<h2>TI (Thermodynamic Integration) results are not available.</h2>")
-        
+        html.append("<h3>* TI (Thermodynamic Integration) results are not available.</h3>")
 
     html.append("</body></html>")
     

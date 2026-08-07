@@ -277,7 +277,7 @@ with main_tab2:
 
         # --- Section 1: 個別手法の実行（画面表示のみ / HTML出力なし） ---
         st.subheader("1. 全物質: 個別手法の実行 (Json保存 / HTMLなし)")
-        st.caption("全物質について指定の解析手法のみを実行し、jsonファイルとして保存します。HTMLには4で保存できます")
+        st.caption("全物質について指定の解析手法のみを実行し、jsonファイルとして保存します。4. 個別物質: HTMLレポートの生成で保存できます")
 
         # 1. カラムを作成してボタンだけを横並びに配置
         col1, col2, col3 = st.columns(3)
@@ -413,7 +413,7 @@ with main_tab2:
     # --- 5. TI を含む全手法実行 ---
     st.subheader("3. 個別物質: Thermodynamic Integral (TI) & 全手法の一括解析 & HTMLレポート生成")
     st.caption("💡 選択された物質に対して Thermodynamic Integral (TI) を含む全手法を一括実行し、解析結果を **HTMLファイル** として自動保存します。")
-    st.info("ℹ️  Beta Scheduleをtestに設定し　$\hat{R}$ (R-hat) の発散・不収束、$E[\log L]$（対数尤度の期待値）の対数爆発・異常値、$Var[\log L]$（尤度分散）の極端な巨大化の有無の確認し、破綻していれば、別の評価指標（AICやBayesian MCMC単体）にフォールバックすることを推奨します。")
+    st.info("ℹ️ $\hat{R}$ (R-hat) の発散・不収束、$E[\log L]$（対数尤度の期待値）の対数爆発・異常値、$Var[\log L]$（尤度分散）の極端な巨大化がある場合、長時間の計算やパラメータの調整は避け、別の評価指標（AICやBayesian MCMC単体）にフォールバックすることを推奨します。")
     if st.session_state["substances"] is None or len(st.session_state["substances"]) == 0:
         st.warning("Please load the data first.")
     else:
@@ -452,7 +452,9 @@ with main_tab2:
             table_box = st.empty()
             progress_bar = st.progress(0)
             ti_result = run_ti(df, cfg, safe_f_substance, progress_box=progress_box, table_box=table_box, progress_bar=progress_bar)
-            st.session_state["ti_results"][safe_f_substance] = ti_result
+            print("DEBUG run_ti keys:", ti_result.keys())
+
+            st.session_state["ti_results"][safe_f_substance] = ti_result           
 
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             plot_path = f"plots_regression/{safe_f_substance}_regression_{timestamp}.png"
@@ -460,6 +462,9 @@ with main_tab2:
 
             fig, plot_path = plot_regression_results2(df, substance, file_name, safe_f_substance, ols_result, mle_result, bayes_result)
             fig.savefig(f"outputs/{plot_path}", dpi=150, bbox_inches="tight")
+            
+            #print("DEBUG before HTML keys:", ti_result.keys())
+            #st.write("DEBUG before HTML keys:", ti_result.keys())
 
             path = generate_html_report(df, ols_result, mle_result, bayes_result, ti_result, plot_path, out_path, safe_f_substance)
             st.success(f"{substance}: The HTML report has been saved: {path}")
