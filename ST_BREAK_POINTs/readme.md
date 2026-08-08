@@ -1,0 +1,212 @@
+
+# POPs Monitoring — Breakpoint Regression System (Version 1.0k)
+
+This repository provides an advanced Streamlit-based analytical system for **structural breakpoint detection** in POPs (Persistent Organic Pollutants) monitoring data.  
+It integrates **STL decomposition**, **classical piecewise regression**, **Bayesian MCMC breakpoint models**, and **Thermodynamic Integration (TI)** for model evidence estimation.
+
+The system is designed for environmental monitoring, long-term trend evaluation, and regulatory assessment of POPs such as PCBs, HCHs, and related substances.
+
+---
+
+## ✨ Key Features
+
+### **1. Data Handling**
+- Upload CSV files containing:
+  - `調査対象物質` (Substance)
+  - `年月` (Year-Month)
+  - `濃度` (Concentration)
+- Automatic time-series construction and log transformation.
+- Optional filtering by start date.
+- Multi-substance support with per-substance session state.
+
+---
+
+## **2. STL Decomposition**
+- Performs **Seasonal-Trend decomposition using LOESS (STL)**.
+- Extracts:
+  - Trend component  
+  - Seasonal component  
+  - Residual component  
+- Visualizes all components with high-quality Matplotlib plots.
+- Supports POPs regulation-year reference lines.
+
+---
+
+## **3. Classical Breakpoint Analysis**
+Uses:
+- **Piecewise Linear Regression (pwlf)**
+- **OLS-based segment fitting**
+- **Moving-slope analysis**
+
+Features:
+- User-selectable number of segments (2–6).
+- Automatic detection of breakpoints.
+- Regression statistics table for each interval.
+- Exportable high-resolution plots.
+
+---
+
+## **4. Bayesian Breakpoint Models (NumPyro)**
+Implements two Bayesian models:
+
+### **1-break model**
+\[
+y = \alpha + \beta_1 x + \beta_2 \max(0, x - \tau)
+\]
+
+### **2-break model**
+\[
+y = \alpha + \beta_1 x + (\beta_2 - \beta_1)\max(0, x - \tau_1) + (\beta_3 - \beta_2)\max(0, x - \tau_2)
+\]
+
+Outputs:
+- Posterior samples for all parameters.
+- Posterior predictive mean curves.
+- 95% credible intervals for breakpoints.
+- Histograms of τ, τ₁, τ₂.
+- Posterior sample fits (50 random draws).
+- Comparison plot of 1-break vs 2-break mean fits.
+
+---
+
+## **5. Thermodynamic Integration (TI)**
+- Computes marginal likelihood via TI.
+- Enables Bayesian model comparison (1-break vs 2-break).
+- Integrated into a dedicated tab.
+
+---
+
+## **6. Batch Processing**
+- Batch HTML report generation for multiple substances.
+- Uses `report_generator.generate_html_report_full`.
+
+---
+
+## 📁 Input CSV Format
+
+The system expects:
+
+| Column | Meaning |
+|--------|---------|
+| `調査対象物質` | Substance name |
+| `年月` | Year-Month (YYYY-MM) |
+| `濃度` | Concentration (numeric) |
+
+Example:
+
+```csv
+調査対象物質,年月,濃度
+PCB-118,2010-01,0.12
+PCB-118,2010-02,0.10
+HCH-alpha,2010-01,0.05
+```
+
+---
+
+## 🚀 How to Run
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/<your-username>/<your-repo>.git
+cd <your-repo>
+```
+
+### 2. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+Main libraries:
+- streamlit  
+- numpy / pandas  
+- matplotlib / japanize-matplotlib  
+- statsmodels  
+- numpyro  
+- pwlf  
+- jax / jaxlib  
+
+### 3. Launch the app
+```bash
+streamlit run st_base_break_point_v1k.py
+```
+
+### 4. Open the browser
+Usually:
+```
+http://localhost:8501
+```
+
+---
+
+## 🧭 App Structure (Tabs)
+
+| Tab | Function |
+|-----|----------|
+| **1. Data** | Raw plot, STL/Normalized/Moving-slope modes |
+| **2. STL** | Seasonal-Trend decomposition |
+| **3. Classical Breakpoints** | pwlf + OLS regression |
+| **4. Bayesian Breakpoints** | MCMC, posterior plots, credible intervals |
+| **5. TI** | Thermodynamic Integration |
+| **6. Batch** | Multi-substance HTML report generation |
+
+---
+
+## 📊 Example Outputs
+
+- STL decomposition plots  
+- Classical piecewise regression with breakpoints  
+- Bayesian posterior predictive curves  
+- τ distributions and credible intervals  
+- High-resolution PNG exports  
+
+---
+
+## 🧪 AI Assistance
+
+This repository was developed with assistance from **Microsoft Copilot** and **Google Gemini**.  
+All final code, design decisions, and validations were made by the author.
+
+---
+
+## 📄 License (MIT)
+
+```text
+MIT License
+
+Copyright (c) 2026 Hiroaki
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## 🙌 Acknowledgements
+
+- NumPyro team  
+- pwlf (Piecewise Linear Fit)  
+- Streamlit community  
+- Environmental monitoring researchers  
+
+---
+
+```
+
+---
+
+もし **日本語版 README** や **図入りの README**、**GitHub Pages 用ドキュメント** も必要なら続けて作れます。
