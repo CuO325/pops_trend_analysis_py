@@ -1,98 +1,101 @@
+---
 
-# POPs Monitoring — Breakpoint Regression System (Version 1.0k)
+# POPsモニタリング — ブレークポイント回帰システム（バージョン 1.0k）
 
-This repository provides an advanced Streamlit-based analytical system for **structural breakpoint detection** in POPs (Persistent Organic Pollutants) monitoring data.  
-It integrates **STL decomposition**, **classical piecewise regression**, **Bayesian MCMC breakpoint models**, and **Thermodynamic Integration (TI)** for model evidence estimation.
+このリポジトリは、POPs（残留性有機汚染物質）モニタリングデータにおける**構造的ブレークポイントの検出**を行う、Streamlitベースの高度な分析システムを提供します。 
+本システムは、**STL分解**、**古典的な区分回帰**、**ベイズMCMCブレークポイントモデル**、およびモデル証拠の推定のための**熱力学的積分（TI）**を統合しています。
 
-The system is designed for environmental monitoring, long-term trend evaluation, and regulatory assessment of POPs such as PCBs, HCHs, and related substances.
+本システムは、PCB、HCH、および関連物質などのPOPsに関する環境モニタリング、長期的な傾向評価、および規制評価を目的として設計されています。
 
 ---
 
-## ✨ Key Features
+## ✨ 主な機能
 
-### **1. Data Handling**
-- Upload CSV files containing:
+### **1. データ処理**
+- 以下の情報を含むCSVファイルをアップロード：
   - `調査対象物質` (Substance)
   - `年月` (Year-Month)
   - `濃度` (Concentration)
-- Automatic time-series construction and log transformation.
-- Optional filtering by start date.
-- Multi-substance support with per-substance session state.
+- 時系列データの自動構築および対数変換。
+- 開始日によるフィルタリング（オプション）。
+- 物質ごとのセッション状態を保持する多物質対応。
 
 ---
 
-## **2. STL Decomposition**
-- Performs **Seasonal-Trend decomposition using LOESS (STL)**.
-- Extracts:
-  - Trend component  
-  - Seasonal component  
-  - Residual component  
-- Visualizes all components with high-quality Matplotlib plots.
-- Supports POPs regulation-year reference lines.
+## **2. STL分解**
+- **LOESSを用いた季節・傾向分解（STL）**を実行します。
+- 以下の成分を抽出します：
+  - 傾向成分  
+  - 季節成分  
+  - 残差成分  
+- 高品質なMatplotlibプロットで全成分を可視化。
+- POPs規制年度の基準線をサポート。
 
 ---
 
-## **3. Classical Breakpoint Analysis**
-Uses:
-- **Piecewise Linear Regression (pwlf)**
-- **OLS-based segment fitting**
-- **Moving-slope analysis**
+## **3. 従来のブレークポイント分析**
+使用手法：
+- **区分線形回帰（pwlf）**
+- **OLSに基づく区間フィッティング**
+- **移動傾斜分析**
 
-Features:
-- User-selectable number of segments (2–6).
-- Automatic detection of breakpoints.
-- Regression statistics table for each interval.
-- Exportable high-resolution plots.
+機能：
+- ユーザーが選択可能な区間数（2～6）。
+- ブレークポイントの自動検出。
+- 各区間ごとの回帰統計表。
+- エクスポート可能な高解像度のプロット。
 
 ---
 
-## **4. Bayesian Breakpoint Models (NumPyro)**
-Implements two Bayesian models:
 
-### **1-break model**
+
+## **4. ベイズ型ブレークポイントモデル (NumPyro)**
+2つのベイズモデルを実装しています：
+
+### **1ブレークモデル**
 \[
 y = \alpha + \beta_1 x + \beta_2 \max(0, x - \tau)
 \]
 
-### **2-break model**
+### **2ブレークモデル**
 \[
 y = \alpha + \beta_1 x + (\beta_2 - \beta_1)\max(0, x - \tau_1) + (\beta_3 - \beta_2)\max(0, x - \tau_2)
 \]
 
-Outputs:
-- Posterior samples for all parameters.
-- Posterior predictive mean curves.
-- 95% credible intervals for breakpoints.
-- Histograms of τ, τ₁, τ₂.
-- Posterior sample fits (50 random draws).
-- Comparison plot of 1-break vs 2-break mean fits.
+出力：
+- すべてのパラメータに対する事後分布のサンプル。
+- 事後予測平均曲線。
+- ブレークポイントの95%信頼区間。
+- τ、τ₁、τ₂のヒストグラム。
+- 事後分布のサンプルフィット（50回のランダム抽出）。
+- 1ブレークモデルと2ブレークモデルの平均フィットの比較プロット。
 
 ---
 
-## **5. Thermodynamic Integration (TI)**
-- Computes marginal likelihood via TI.
-- Enables Bayesian model comparison (1-break vs 2-break).
-- Integrated into a dedicated tab.
+## **5. 熱力学的積分 (TI)**
+- TI を用いて周辺尤度を計算します。
+- ベイズモデル比較（1 ブレーク対 2 ブレーク）を可能にします。
+- 専用のタブに統合されています。
 
 ---
 
-## **6. Batch Processing**
-- Batch HTML report generation for multiple substances.
-- Uses `report_generator.generate_html_report_full`.
+## **6. バッチ処理**
+- 複数の物質に対するHTMLレポートのバッチ生成。
+- `report_generator.generate_html_report_full`を使用。
 
 ---
 
-## 📁 Input CSV Format
+## 📁 入力CSV形式
 
-The system expects:
+システムが期待する形式：
 
-| Column | Meaning |
+| 列 | 意味 |
 |--------|---------|
-| `調査対象物質` | Substance name |
-| `年月` | Year-Month (YYYY-MM) |
-| `濃度` | Concentration (numeric) |
+| `調査対象物質` | 物質名 |
+| `年月` | 年-月 (YYYY-MM) |
+| `濃度` | 濃度 (数値) |
 
-Example:
+例:
 
 ```csv
 調査対象物質,年月,濃度
@@ -103,20 +106,20 @@ HCH-alpha,2010-01,0.05
 
 ---
 
-## 🚀 How to Run
+## 🚀 実行方法
 
-### 1. Clone the repository
+### 1. リポジトリをクローンする
 ```bash
 git clone https://github.com/<your-username>/<your-repo>.git
 cd <your-repo>
 ```
 
-### 2. Install dependencies
+### 2. 依存関係をインストールする
 ```bash
 pip install -r requirements.txt
 ```
 
-Main libraries:
+主なライブラリ：
 - streamlit  
 - numpy / pandas  
 - matplotlib / japanize-matplotlib  
@@ -125,46 +128,47 @@ Main libraries:
 - pwlf  
 - jax / jaxlib  
 
-### 3. Launch the app
+### 3. アプリを起動する
 ```bash
 streamlit run st_base_break_point_v1k.py
 ```
 
-### 4. Open the browser
-Usually:
+### 4. ブラウザを開く
+通常は：
 ```
 http://localhost:8501
 ```
 
 ---
 
-## 🧭 App Structure (Tabs)
+## 🧭 アプリの構造（タブ）
 
-| Tab | Function |
+| タブ | 機能 |
 |-----|----------|
-| **1. Data** | Raw plot, STL/Normalized/Moving-slope modes |
-| **2. STL** | Seasonal-Trend decomposition |
-| **3. Classical Breakpoints** | pwlf + OLS regression |
-| **4. Bayesian Breakpoints** | MCMC, posterior plots, credible intervals |
-| **5. TI** | Thermodynamic Integration |
-| **6. Batch** | Multi-substance HTML report generation |
+| **1. データ** | 生データのプロット、STL/正規化/移動傾斜モード |
+| **2. STL** | 季節・トレンド分解 |
+| **3. 従来のブレークポイント** | pwlf + OLS回帰 |
+| **4. ベイズ式ブレークポイント** | MCMC、事後分布プロット、信頼区間 |
+| **5. TI** | 熱力学的積分 |
+| **6. バッチ** | 複数物質のHTMLレポート生成 |
 
 ---
 
-## 📊 Example Outputs
+## 📊 出力例
 
-- STL decomposition plots  
-- Classical piecewise regression with breakpoints  
-- Bayesian posterior predictive curves  
-- τ distributions and credible intervals  
-- High-resolution PNG exports  
+- STL分解プロット  
+- ブレークポイントを用いた古典的な区分回帰  
+- ベイズ事後予測曲線  
+- τ分布と信頼区間  
+- 高解像度PNGエクスポート  
 
 ---
 
-## 🧪 AI Assistance
+## 🧪 AIアシスタンス
 
-This repository was developed with assistance from **Microsoft Copilot** and **Google Gemini**.  
-All final code, design decisions, and validations were made by the author.
+このリポジトリは、**Microsoft Copilot**および**Google Gemini**の支援を受けて開発されました。  
+最終的なコード、設計上の決定、および検証はすべて著者によって行われました。
+
 
 ---
 
@@ -204,9 +208,3 @@ SOFTWARE.
 - Environmental monitoring researchers  
 
 ---
-
-```
-
----
-
-もし **日本語版 README** や **図入りの README**、**GitHub Pages 用ドキュメント** も必要なら続けて作れます。

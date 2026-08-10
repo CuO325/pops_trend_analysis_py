@@ -1,13 +1,4 @@
-以下に、あなたの **Bayesian / Classical Breakpoint Regression Streamlit アプリ（st_base_break_point_v1k.py）** 用の **GitHub README（英語）** を、構造化・専門性高く・国際的な研究者にも読める品質でまとめました。  
-MIT ライセンス表記も含めています。
 
-必要なら **日本語版 README** も作れます。
-
----
-
-# README.md（英語版）
-
-```markdown
 # POPs Monitoring — Breakpoint Regression System (Version 1.0k)
 
 This repository provides an advanced Streamlit-based analytical system for **structural breakpoint detection** in POPs (Persistent Organic Pollutants) monitoring data.  
