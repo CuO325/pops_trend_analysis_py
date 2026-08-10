@@ -1,10 +1,4 @@
 
-
----
-
-# 📄 **README.md　**
-
-```markdown
 # Hierarchical Student-t Regression with NumPyro
 Robust Multi‑Site Trend Analysis for Environmental and QSAR Data
 **多地点・多物質モニタリングデータのための頑健な階層ベイズモデル**
@@ -258,7 +252,8 @@ This project uses:
 
 For questions or collaboration, feel free to open an issue or pull request.
 
-```
+
+# Hierarchical Student-t regression.pyとの違い
 
  `Hierarchical Student-t regression.py`（以下、**emcee版**）と、 `pops_hierarchical_numpyro.py`（以下、**NumPyro版**）は、どちらも「階層ベイズ + Student-t分布」という同じ数理モデルを目指していますが、**「エンジン（計算手法）」**と**「実用上の特性」**が大きく異なります。
 
