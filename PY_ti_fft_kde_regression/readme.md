@@ -23,7 +23,7 @@ The framework includes
 
 ---
 
-![plot](examples/ヘキサクロロブタ-1_3-ジエン_13HCBD.png)
+![plot](examples/13HCBD.png)
 
 ## Features
 
