@@ -64,31 +64,31 @@ This implementation is suitable for scientific research, regulatory analysis, an
 ### 🔹 Hierarchical Bayesian Model
 Each site has its own slope and intercept:
 
-\[
+$$
 y_{i,j} = a_i x_{i,j} + b_i + \epsilon_{i,j}
-\]
+$$
 
 with partial pooling:
 
-\[
+$$
 a_i \sim N(\mu_a, \sigma_a), \quad b_i \sim N(\mu_b, \sigma_b)
-\]
+$$
 
 ### 🔹 Robust Student‑t Residuals
 The model uses a Student‑t likelihood:
 
-\[
+$$
 \epsilon_{i,j} \sim t_\nu(0, \sigma)
-\]
+$$
 
 allowing heavy tails and resistance to outliers.
 
 ### 🔹 Non‑Centered Parameterization
 Improves convergence and sampling efficiency:
 
-\[
+$$
 a_i = \mu_a + \sigma_a \cdot a_{\text{raw},i}
-\]
+$$
 
 ### 🔹 NUTS / HMC Sampling
 NumPyro provides:
@@ -114,7 +114,7 @@ Both global and per‑site Bayesian R² are computed.
 ```text
 hierarchical_numpyro/
 │
-├── mymodel_numpyro.py        # Main NumPyro hierarchical model
+├── pops_hierarchical_numpyro.py        # Main NumPyro hierarchical model
 ├── README.md                 # This file
 ├── data/                     # Input CSV files
 └── plots/                    # Optional output plots
@@ -147,7 +147,7 @@ Non‑detects are automatically replaced using:
 ## 🚀 How to Run
 
 ```bash
-python mymodel_numpyro.py
+python pops_hierarchical_numpyro.py
 ```
 
 The script will:
