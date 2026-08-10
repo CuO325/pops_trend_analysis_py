@@ -113,12 +113,10 @@ Both global and per‑site Bayesian R² are computed.
 
 ```text
 hierarchical_numpyro/
-│
-├── pops_hierarchical_numpyro.py        # Main NumPyro hierarchical model
-├── README.md                 # This file
-├── data/                     # Input CSV files
-└── plots/                    # Optional output plots
-
+├── pops_hierarchical_numpyro.py   # Main NumPyro model
+├── compare_posteriors.py          # emcee vs NumPyro validation
+├── README.md
+└── examples/
 ```
 
 ---
@@ -252,6 +250,8 @@ For questions or collaboration, feel free to open an issue or pull request.
 
 # Hierarchical Student-t regression.pyとの違い
 
+
+
  `Hierarchical Student-t regression.py`（以下、**emcee版**）と、 `pops_hierarchical_numpyro.py`（以下、**NumPyro版**）は、どちらも「階層ベイズ + Student-t分布」という同じ数理モデルを目指していますが、**「エンジン（計算手法）」**と**「実用上の特性」**が大きく異なります。
 
 
@@ -302,5 +302,9 @@ For questions or collaboration, feel free to open an issue or pull request.
 
 まずは emcee版でモデルの妥当性を確認し、計算時間が課題になってきたら NumPyro版へ移行するという流れがスムーズです。
 
-    
+### Validation
+
+A utility script (`compare_posteriors.py`) is provided to compare posterior distributions obtained from the original emcee implementation and the NumPyro implementation.
+
+The script overlays posterior densities and compares posterior means to ensure consistency between samplers.    
 
