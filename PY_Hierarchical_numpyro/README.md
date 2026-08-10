@@ -28,6 +28,7 @@ Robust Multi‑Site Trend Analysis for Environmental and QSAR Data
 ### 3. 実行
 ```bash
 python pops_hierarchical_numpyro.py
+```
 
 📊 出力される成果物
 実行後、outputs/（または指定ディレクトリ）に以下が生成されます。
