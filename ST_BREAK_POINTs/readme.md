@@ -7,6 +7,10 @@
 
 本システムは、PCB、HCH、および関連物質などのPOPsに関する環境モニタリング、長期的な傾向評価、および規制評価を目的として設計されています。
 
+![plot](examples/PCB-Di_fig_stl.png)
+
+![plot](examples/PCB-Di_fig1.png)
+
 ---
 
 ## ✨ 主な機能
