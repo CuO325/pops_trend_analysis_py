@@ -7,6 +7,8 @@
 
 ---
 
+![plot](examples/ペルフルオロオクタンスルホン酸（PFOS）_PFOS大気温暖期_regression.png)
+
 ## 概要・主な機能
 
 - **最尤推定（MLE）による対数線形回帰 & AIC 比較**
