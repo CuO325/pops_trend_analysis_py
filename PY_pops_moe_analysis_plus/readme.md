@@ -1,11 +1,5 @@
 
-はい、もちろんです！ベイズ推定（FFT-KDEによる事前/事後分布の密度推定やベイズファクター $BF$ によるモデル比較）のモジュールを組み込んだ構成に合わせて、`README.md` を更新しましょう。
 
-以下に、**ベイズ推定のロジックや理論的背景、出力結果の説明を反映させた最新版の `README.md**` を作成しました。
-
----
-
-```markdown
 # Environmental Trend Analysis Framework (Water Quality Trend Analyzer)
 
 水質データなどの環境モニタリングデータ（定量下限値・検出限界値 DL が混在・変動する時系列データ）に対して、統計的・ベイズ的アプローチを用いて高い信頼性の傾向分析を行う Python スクリプトです。
@@ -126,4 +120,4 @@ output/
 
 [MIT License](https://www.google.com/search?q=LICENSE)
 
-```
+
