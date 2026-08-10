@@ -7,13 +7,13 @@ This repository provides a complete framework for Bayesian trend estimation usin
 **Thermodynamic Integration (TI)** for marginal likelihood (logZ) computation and  
 Bayes Factor model comparison.
 
-The tool is designed for environmental time‑series data where:
+The tool is designed for environmental time‑series data where
 - Observations may be irregularly spaced,
 - Measurement noise is non-Gaussian,
 - Missing years are common,
 - Classical linear regression assumptions do not hold.
 
-The framework includes:
+The framework includes
 - Bayesian linear regression with FFT-KDE likelihood  
 - MCMC sampling (emcee) with R-hat diagnostics  
 - Thermodynamic Integration for logZ estimation  
@@ -23,7 +23,7 @@ The framework includes:
 
 ---
 
-![PLOT](examples/ヘキサクロロブタ-1_3-ジエン_13HCBD.png)
+![plot](examples/ヘキサクロロブタ-1_3-ジエン_13HCBD.png)
 
 ## Features
 
