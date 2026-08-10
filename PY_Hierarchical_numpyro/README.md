@@ -111,7 +111,7 @@ Both global and per‑site Bayesian R² are computed.
 
 ## 📁 Repository Structure
 
-
+```text
 hierarchical_numpyro/
 │
 ├── mymodel_numpyro.py        # Main NumPyro hierarchical model
@@ -119,6 +119,7 @@ hierarchical_numpyro/
 ├── data/                     # Input CSV files
 └── plots/                    # Optional output plots
 
+```
 
 ---
 
