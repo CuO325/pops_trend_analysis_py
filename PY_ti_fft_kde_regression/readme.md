@@ -22,7 +22,9 @@ The framework includes:
 - HTML report generation with plots (E[logL], Rhat, posterior summaries)
 
 ---
+
 ![PLOT](examples/ヘキサクロロブタ-1_3-ジエン_13HCBD.png)
+
 ## Features
 
 ### 🔹 FFT-KDE Likelihood
@@ -43,9 +45,9 @@ chain convergence.
 ### 🔹 Thermodynamic Integration (TI)
 Marginal likelihood is computed via:
 
-\[
+$$
 \log Z = \int_0^1 \mathbb{E}_{\beta}[\log L] \, d\beta
-\]
+$$
 
 Supports:
 - Linear model
@@ -54,9 +56,9 @@ Supports:
 - E[logL] plots saved to `output/ti/`
 
 ### 🔹 Bayes Factor Model Comparison
-\[
+$$
 \text{BF} = \exp(\log Z_{\text{linear}} - \log Z_{\text{const}})
-\]
+$$
 
 Interpretation follows Jeffreys scale.
 
