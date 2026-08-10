@@ -137,15 +137,10 @@ The script expects a CSV file with the following columns:
 
 Non‑detects are automatically replaced using:
 
-\[
-\text{DL} / \sqrt{2}
-\]
+### Data preprocessing
 
-and log‑transformed:
-
-\[
-\log_{10}(\text{concentration})
-\]
+- Non-detects are replaced with **DL / √2** (Hornung & Reed method).
+- Concentrations are transformed using **log₁₀(concentration)** prior to modeling.
 
 ---
 
