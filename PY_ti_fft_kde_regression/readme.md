@@ -1,8 +1,5 @@
 ---
 
-# 📄 **README.md（English Version）**
-
-```markdown
 # Bayesian Trend Analysis with FFT-KDE Likelihood and Thermodynamic Integration
 
 This repository provides a complete framework for Bayesian trend estimation using  
@@ -25,7 +22,7 @@ The framework includes:
 - HTML report generation with plots (E[logL], Rhat, posterior summaries)
 
 ---
-
+![PLOT](examples/ヘキサクロロブタ-1_3-ジエン_13HCBD.png)
 ## Features
 
 ### 🔹 FFT-KDE Likelihood
@@ -150,8 +147,6 @@ pip install -r requirements.txt
 
 MIT License  
 © 2026 Hiroaki Shiraishi
-
-```
 
 ---
 
