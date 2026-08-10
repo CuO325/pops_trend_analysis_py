@@ -1,488 +1,103 @@
-## バージョン履歴
-- v7: KDEベイズ自動収束、Rhat、KDE安定化（2025/11/15）
-- v5: MLE + ベイズ + ブートストラップ統合版
 
+# POPs Trend Analysis (pops_trend_analysis_py)
 
-# Pops Trend Analysis Project
+**POPs Trend Analysis** は、環境化学物質（POPs: 残留性有機汚染物質など）の経年モニタリングデータを統計的・ベイズ的手法を用いて解析し、トレンド（増加・減少傾向）を評価するための Python パッケージ・スクリプト集です。
 
----
-
-### 📌 **概要**
-
-階層ベイズモデルを中心とした高度なトレンド分析プロジェクトです。
-
-なお、以下の環境省 POP モニタリングの「経年変化の解析手法」に記載される方法も Python 化していますが、  
-**不検出値の扱い方や KDE のバンド幅設定などが異なるため、公表資料と同一の結果にはなりません。**
-
-本プロジェクトでは、以下の 3 手法を実装しています。
-
-1. **KDE を用いた非パラメトリック誤差分布に基づく最尤推定（KDE‑MLE）**  
-   残差分布を KDE（カーネル密度推定）で推定し、その密度を尤度として線形モデルのパラメータ (a,b) を推定します。  
-   また、0 次式との **AIC によるモデル比較** を行います。  
-   （以下、便宜的に “KDE‑MLE / AIC” と呼びます。）
-
-2. **ブートストラップ検定**
-
-3. **二項ロジスティック回帰**
-
-参考：環境省「化学物質と環境（黒本）」2025年版  
-  参考資料２　経年分析の方法等に関する補足説明　[https://www.env.go.jp/chemi/kurohon/2025/shosai/3_8.pdf]
+対数線形回帰（最尤推定法: MLE）をはじめ、残差KDE（カーネル密度推定）を活用した MCMC ベイズ推論 (`emcee`)、二項回帰モデル（GLM）、ブートストラップ法による多角的な比較分析に対応しています。
 
 ---
 
-## 📌 **分析フェーズ別の手法の概要**
+## 概要・主な機能
 
-### **Phase 1：KDE-MLE（点推定 / AIC によるモデル比較）**  
-**目的**：環境省 POP モニタリング手法（1. 最尤推定）に相当  
-**特徴**：  
-- 残差分布を KDE で非パラメトリック推定  
-- KDE を尤度として線形モデル (a,b) を最尤推定  
-- 0 次式との AIC 比較  
-**対応スクリプト**： 
-- `pops_trend_analysis.py` 
-- `pops_fft_kde_analysis.py`  
-
-**備考**：設定（不検出処理・バンド幅）が異なるため、公表値とは一致しない
-
----
-
-### **Phase 2：emcee（a,b のベイズ推定 / FFT-KDE 尤度）**  
-**目的**：KDE-MLE をベイズ化し、不確実性を評価  
-**特徴**：  
-- KDE を固定したまま a,b の事後分布を MCMC で推定  
-- FFT-KDE による高速化バージョンも実装  
-- p(a<0) などの確率的評価が可能  
-**対応スクリプト**：  
-- `pops_trend_analysis.py`  
-- `pops_fft_kde_analysis.py`  
-- `pops_bayes_fastfft_loo_v01.py`
+- **最尤推定（MLE）による対数線形回帰 & AIC 比較**
+  - モデルの適合度を AIC（赤池情報量規準）に基づき評価・比較します。
+- **KDE 尤度ベイズ推定 (MCMC / `emcee`)**
+  - 残差分布にノンパラメトリックな KDE を適用し、より現実的な分布形状を考慮したベイズ推論を実施します。
+  - 収束・信用区間幅に基づく自動早期停止（Auto-Stop）アルゴリズムを標準搭載。
+- **低濃度・不検出データの解析（二項回帰モデル）**
+  - 検出限界（DL）以下の比率変化を Binomial GLM でモデル化し、定量値化しにくい低濃度域の評価に対応。
+- **期間分割ブートストラップ検定**
+  - 前期・後期の平均値差に対する 95% 信頼区間をリサンプリング（Bootstrap）により算出します。
+- **自動プロット生成**
+  - 実測値、検出限界（DL）、回帰直線、分割年ラインなどを一括可視化し、画像（PNG）として保存します。
 
 ---
 
-### **Phase 3：NumPyro（階層ベイズ + Student-t）**  
-**目的**：複数サイトの情報を統合し、完全な階層ベイズモデルでトレンドを推定  
-**特徴**：  
-- 階層構造（部分プーリング）  
-- Student-t 誤差（外れ値に強い）  
-- 予測分布・LOO・Bayesian R² など完全なベイズ解析  
-**対応スクリプト**：  
-- `Hierarchical Student-t_emcee.py`  
-- `pops_hierarchical_numpyro.py`
+## ディレクトリ構成
+
+```text
+pops_trend_analysis_py/
+├── PY_emcee_kde_regression/    # KDEベイズ回帰 (emcee) メイン処理
+│   └── pops_trend_analysis_v1.1.py
+├── PY_Hierarchical_emcee/       # 階層ベイズモデル (emcee)
+├── PY_Hierarchical_numpyro/     # 階層ベイズモデル (NumPyro)
+├── PY_MOE_KDE_AIC/              # MOE / KDE AIC 比較解析
+├── PY_pops_moe_analysis_plus/   # 拡張モデル群
+├── PY_ti_fft_kde_regression/    # FFTを用いたKDE高速化モデル
+├── ST_BREAK_POINTs/             # 変化点分析 (Breakpoint)
+├── ST_SARIMA_prediction/        # 時系列予測 (SARIMA)
+└── README.md
+
+```
 
 ---
 
-## main ディレクトリ構造
-- `analysis/`: importモジュール
-- `data/`: 解析対象の生データ
-- `outputs/`: スクリプトの実行結果（統計量など, 形式：csv、html など）
-- `outputs/plots_regression/`:　（スクリプトの実行結果, 形式：png）
+## 動作環境・依存ライブラリ
 
-- `hierarchical_numpyro/`: pops_hierarchical_numpyro.py の保存先
-- `experiment/`: 検討中ファイルの保存先
+Python 3.8 以上推奨。主な依存ライブラリは以下の通りです：
 
-## 今後の展望
-- 階層モデルの精度向上に向けた事前分布の微調整。
-- 階層モデルのQSARへの適用
+* `numpy`
+* `pandas`
+* `matplotlib`
+* `scipy`
+* `scikit-learn`
+* `statsmodels`
+* `emcee`
+* `japanize-matplotlib` (日本語フォントプロット用)
 
-## 更新履歴
-- **階層モデルの統合**: 多階層分析用の `pops_hierarchical_numpyro.py` を追加。
-- **ファイル名の整理**: 旧 `pops_final_test2.py` を、機能を表す `pops_fft_kde_analysis.py` へ変更。
-- **pops_fft_kde_analysis.py の追加**: FFT-KDEを統合し、推論速度を大幅に向上。
-- **ディレクトリ構造の整理**: 出力先を `outputs/` に統一。
-- **Git管理の最適化**: `.gitignore` を更新し、不要なキャッシュや中間ファイルを追跡対象外に設定。
-最尤推定法、AIC、ブートストラップ検定、二項回帰モデルなど複数の手法を組み合わせ、物質ごとの濃度変化を多角的に評価します。
-
-
-## 使用ライブラリとライセンス
-
-本プロジェクトは以下のオープンソースライブラリを利用しています。
-
-- NumPy (BSD-3-Clause)
-- SciPy (BSD-3-Clause)
-- pandas (BSD-3-Clause)
-- scikit-learn (BSD-3-Clause)
-- statsmodels (BSD-3-Clause)
-- matplotlib (PSF/BSD)
-- japanize-matplotlib (MIT)
-- emcee (MIT)
-
-各ライブラリのライセンス条件に従い、本プロジェクトでは著作権表示を保持しています。
-
----
-
-## 🚀 主な特徴
-
-- **不検出値（ND）の統一処理**：検出下限値の 1/√2 による代替  
-- **対数線形回帰（最尤推定 + AIC）**：AIC事後確率 p1 による傾向判定  
-- **ブートストラップ検定**：前期・後期の平均値差の信頼区間を推定  
-- **二項回帰モデル**：低濃度地点割合の経年変化を評価  
-- **可視化**：回帰直線とデータ点をプロット  
-- **結果の自動集計と CSV 出力**
-
----
-
-## 📁 入力データ形式
-
-CSV は以下の列を含む必要があります：
-
-| 列名 | 説明 |
-|------|------|
-| `substance` | 物質名 |
-| `year` | 年度（整数） |
-| `site_id` | 測定地点 ID |
-| `concentration` | 濃度（ND 表記含む） |
-| `detection_limit` | 検出下限値 |
-
-例：`data/大気寒冷期.csv`
-
----
-
-## 🔧 解析フロー
-
-### 1. データ前処理
-- ND 表記（nd, tr(), --- など）を統一的に数値化  
-- 不検出値は **検出下限値 / √2** で代替  
-- 対数変換（log）  
-- 無限大・NaN を除去  
-
-### 2. 最尤推定法 + AIC による線形トレンド評価
-- 1次式モデル（a × 年 + b）  
-- 0次式モデル（定数）  
-- AIC事後確率 p1 ≥ 0.95 → **傾向あり**
-
-### 3. ブートストラップ検定
-- 年度の中央値で前期・後期に分割  
-- 平均値差の 95% 信頼区間を推定  
-- CI の符号で有意差を判定  
-
-### 4. 二項回帰モデル
-- 統一検出下限値を下回る地点を「低濃度地点」と定義  
-- 年ごとの割合を二項回帰で解析  
-- p1 ≥ 0.95 → **傾向あり**
-
-### 5. 可視化
-- 実測 log 濃度の散布図  
-- 最尤推定の回帰直線  
-- 分割年（ブートストラップ）を縦線で表示  
-
-### 6. 結果の集計
-物質ごとに以下をまとめた CSV を出力：
-
-- 傾き（線形モデル）  
-- AIC事後確率 p1  
-- ブートストラップ CI  
-- 二項回帰の傾き・p1  
-- 各手法の傾向判定  
-
-出力例：`大気寒冷期_results.csv`
-
----
-
-## ▶ 実行方法
+### インストール例
 
 ```bash
-python pops_idea.py
-```
-
----
-
-## 📊 想定される用途
-
-- 長期モニタリングデータの傾向解析  
-- 汚染物質の減少傾向の科学的評価  
-- 行政報告書・学術論文の基礎解析  
-- AIC に基づくモデル選択の実践例  
-
----
-
-## 📄 ライセンス（MIT License）
+pip install numpy pandas matplotlib scipy scikit-learn statsmodels emcee japanize-matplotlib
 
 ```
-MIT License
 
-Copyright (c) 2026 Hiroaki
+---
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the “Software”), to deal
-in the Software without restriction, including without limitation the rights  
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell  
-copies of the Software, and to permit persons to whom the Software is  
-furnished to do so, subject to the following conditions:
+## 使い方
 
-（以下 MIT ライセンス全文）
+### データの準備
+
+`data/` ディレクトリ配下に、以下のカラムを含む CSV ファイルを用意します。
+
+* `substance`: 物質名
+* `year`: 観測年
+* `site_id`: 調査地点 ID
+* `concentration`: 測定濃度値
+* `detection_limit`: 検出限界値 (DL)
+
+### 実行方法
+
+`PY_emcee_kde_regression/pops_trend_analysis_v1.1.py` 内の対象ファイル名 (`filenames`) を設定の上、実行します。
+
+```bash
+python PY_emcee_kde_regression/pops_trend_analysis_v1.1.py
+
 ```
 
+### 出力物
 
-## 📘 pops_idea_5.py の詳細解説（統合環境データ解析スクリプト）
+1. **変換済みデータ** (`data/<filename>_conv.csv`)
+* 欠測値処理や不検出データの代替値処理 ($DL / \sqrt{2}$)、$\log_{10}$ 変換後のデータ。
 
-このスクリプトは、環境モニタリングデータ（大気・水質・底質・生物など）に対して  
-**複数の統計モデル・ベイズ推定・可視化・HTML レポート生成までを一括で行う総合解析ツール**です。
 
-解析の流れは以下の 7 段階で構成されています。
+2. **回帰プロット** (`plots_regression/`)
+* 実測データ、検出限界、MLE 回帰直線をプロットした画像ファイル。
 
----
-
-### 1. データ読み込みと前処理
-
-- CSV から  
-  `substance, year, site_id, concentration, detection_limit` を読み込む  
-- ND（不検出値）表記（`nd`, `tr()`, `---` など）を `clean_value_user()` で数値化  
-- 不検出値は  
-  ```
-  detection_limit / sqrt(2)
-  ```  
-  で代替  
-- 対数変換は log10 を使用  
-- 変換後データを `data/{filename}_conv.csv` に保存
-
----
-
-### 2. 最尤推定（MLE）+ AIC による線形トレンド評価
-
-- モデル  
-  - **1次式**： y = a(x − x_base) + b  
-  - **0次式**： y = b0  
-- 残差分布は KDE（カーネル密度推定）で推定  
-- AIC 事後確率  
-  ```
-  p1 = exp(-0.5 * ΔAIC) / (1 + exp(-0.5 * ΔAIC))
-  ```
-- 判定  
-  - p1 ≥ 0.95 → **傾向あり**
-
----
-
-### 3. ベイズ推定（MCMC + KDE 尤度）
-
-- `emcee` による MCMC サンプリング  
-- KDE を誤差分布として固定  
-- 事前分布は広い正規分布（N(0, 10²））  
-- 出力  
-  - a の事後平均  
-  - b の事後平均  
-  - 95% CI  
-  - **P(a < 0)**（減少傾向の確率）  
-- 判定  
-  - a < 0 かつ P(a < 0) ≥ 0.95 → **傾向あり**
-
----
-
-### 4. ブートストラップ検定（前期 vs 後期）
-
-- 年度の中央値で前期・後期に分割  
-- 平均値差の 95% CI を推定  
-- 判定  
-  - CI > 0 → 後期は有意に低濃度  
-  - CI < 0 → 後期は有意に高濃度  
-  - 0 をまたぐ → 有意差なし
-
----
-
-### 5. 二項回帰モデル（低濃度地点割合の傾向）
-
-- 統一検出下限値 = 期間中の最大 detection_limit  
-- 低濃度地点フラグ  
-  ```
-  low_flag = (concentration < unified_dl)
-  ```
-- GLM（Binomial）で割合の経年変化を推定  
-- AIC 事後確率 p1 ≥ 0.95 → **傾向あり**
-
----
-
-### 6. 回帰直線 + 検出限界の可視化
-
-- 実測 log10 濃度  
-- MLE 回帰直線  
-- 検出限界（横棒）  
-- 分割年（縦線）  
-- タイトルに AIC 事後確率 p1 を表示  
-- 保存先：  
-  ```
-  plots_regression/{substance}_{filename}_regression.png
-  ```
-
----
-
-### 7. HTML レポート生成
-
-- 出力ファイル：  
-  ```
-  outputs/{filename}_regression_report_2024_01.html
-  ```
-- 内容  
-  - 物質名  
-  - 年リスト  
-  - MLE 傾き・p1  
-  - ベイズ推定結果  
-  - ブートストラップ CI  
-  - 二項回帰結果  
-  - グラフ画像
-
----
-
-## 🔍 このスクリプトの特徴
-
-- KDE を使った柔軟な誤差モデル  
-- ベイズ推定（MCMC）による確率的評価  
-- MLE / ブートストラップ / 二項回帰の **3 系統の傾向判定**  
-- HTML レポートまで自動生成  
-- 検出限界をプロットに表示  
-- pops_idea_5.pyは、実務レベルの環境統計解析ツールとして完成度が高い
-
----
 
 
 ---
 
-## 📘 pops_idea_7.py の詳細解説（最新版・改良版）
+## ライセンス
 
-*pops_idea_7.py* は、環境モニタリングデータのトレンド解析を  
-**最尤推定（MLE）・ベイズ推定（MCMC）・ブートストラップ・二項回帰・可視化・HTML レポート生成**  
-まで一括で行う総合解析スクリプトです。
-
-前バージョン（pops_idea_5.py）を完全に上回る改良が加えられ、  
-**解析の安定性・速度・信頼性が大幅に向上**しています。
-
----
-
-# 🔷 1. 全体構造
-
-pops_idea_7.py は以下の 6 つの解析モジュールで構成されています。
-
-1. **データ前処理（ND処理・log10変換）**  
-2. **最尤推定（MLE）+ AIC による線形トレンド評価**  
-3. **KDE 尤度ベイズ推定（MCMC）— 改良版**  
-4. **ブートストラップ検定（前期 vs 後期）**  
-5. **二項回帰モデル（低濃度地点割合の傾向）**  
-6. **可視化（回帰直線・検出限界）と HTML レポート生成**
-
----
-
-# 🔷 2. 改良されたベイズ推定（MCMC + KDE 尤度）
-
-pops_idea_7.py の最大の特徴は、  
-**KDE 尤度ベイズ推定の大幅な強化**です。
-
-### 🔹 主な改良点
-
-- **自動早期収束判定（auto-stop）**  
-  信用区間の幅と符号が安定すると自動停止し、計算時間を短縮。
-
-- **KDE の安定化（safe_gaussian_kde）**  
-  データが定数に近い場合でも落ちない堅牢な KDE。
-
-- **Gelman–Rubin Rhat の導入**  
-  MCMC の収束診断が可能。
-
-- **自己相関時間（autocorr time）の計算**  
-  サンプルの独立性を評価。
-
-- **データスケールに応じた事前分布（log_prior_informative）**  
-  a（傾き）と b（切片）の事前分布がデータに適応。
-
-- **chunk 実行で途中経過を表示**  
-  長時間の MCMC でも進捗が分かりやすい。
-
-### 🔹 出力されるベイズ結果
-
-- a の事後平均  
-- b の事後平均  
-- 95% 信用区間  
-- **P(a < 0)**（減少傾向の確率）  
-- Rhat（収束診断）  
-- 自己相関時間  
-- 自動停止の有無  
-
----
-
-# 🔷 3. 最尤推定（MLE）+ AIC
-
-- KDE を誤差分布とする柔軟な MLE  
-- 1次式モデル vs 0次式モデル  
-- AIC 事後確率 p1 による傾向判定  
-- 中心化（x_base）を導入し数値安定性を向上
-
----
-
-# 🔷 4. ブートストラップ検定
-
-- 年度の中央値で前期・後期に分割  
-- 平均値差の 95% CI を推定  
-- CI の符号で有意差を判定  
-- pops_idea_5.py より高速化
-
----
-
-# 🔷 5. 二項回帰モデル（低濃度地点割合の傾向）
-
-- 統一検出下限値（最大 DL）を採用  
-- GLM（Binomial）で割合の経年変化を推定  
-- AIC 事後確率 p1 による判定  
-- PerfectSeparationWarning に対応
-
----
-
-# 🔷 6. 可視化と HTML レポート生成
-
-### 🔹 プロット内容
-
-- 実測 log10 濃度  
-- MLE 回帰直線  
-- 検出限界（横棒）  
-- 分割年（縦線）  
-- タイトルに  
-  - MLE p1  
-  - ベイズ P(a<0)  
-  を表示
-
-### 🔹 保存先
-
-```
-outputs/plots_regression/{substance}_{filename}_regression.png
-```
-
-### 🔹 HTML レポート
-
-- 各物質ごとの解析結果をまとめて出力  
-- グラフ画像も自動挿入  
-- 実務レベルの報告書として利用可能
-
----
-
-# 🔷 7. pops_idea_7.py の強み（pops_idea_5.py からの進化）
-
-| 項目 | pops_idea_5.py | pops_idea_7.py |
-|------|----------------|----------------|
-| KDE ベイズ推定 | 基本版 | **自動収束・安定化・診断付き** |
-| KDE | 標準 | **safe_gaussian_kde で堅牢化** |
-| MCMC | 固定ステップ | **chunk 実行 + 途中経過表示** |
-| 事前分布 | 単純ガウス | **データスケール適応型** |
-| 診断 | なし | **Rhat / autocorr** |
-| HTML レポート | 基本版 | **改善版** |
-| 安定性 | 中 | **高い（落ちにくい）** |
-| 実行速度 | 中 | **高速（auto-stop）** |
-
----
-
-# 🔷 8. まとめ：pops_idea_7.py は正式版として採用
-
-- 解析の安定性  
-- ベイズ推定の信頼性  
-- 実行速度  
-- コード構造  
-- 実務での運用性  
-
-*pops_idea_7.py* を　pops_trend_analysis.py と rename した。
-
----
-
-# pops_bayes_fastfft_loo_v01.py 
- pops_fft_kde_analysis.py（旧 pops_final_test2.py）と「FFT-KDEによる高速ベイズ」という核となるエンジンは同じですが、
-
-1. モデル比較機能（事後確率 pM1の算出）
-「1次式モデル（トレンドあり）」と「0次式モデル（トレンドなし）」を比較し、そのエビデンスの強さを pM1 という事後確率で出力します。
-2. LOO（Leave-One-Out）交差検証の導入
-内容: データを一つずつ除いてモデルを再評価するようなプロセスを経て、モデルの汎化性能（未知のデータに対する予測力）をチェックします。
-3. Bootstrap法との併用
-ベイズ推定だけでなく、ブートストラップ法（再サンプリング法）による推定も同時に行い、レポートに出力しています。
+本プロジェクトは MIT ライセンスです。
