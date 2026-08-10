@@ -8,6 +8,8 @@
 
 ---
 
+![plot](examples/α-HCH_生物_regression.png)
+
 ## 🌟 主な機能
 
 - **多重検知限界（Multiple DL）への完全対応**
