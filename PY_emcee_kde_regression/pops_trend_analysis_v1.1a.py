@@ -387,73 +387,78 @@ def run_mle_and_aic(df):
     p1 = numerator / denominator if denominator != 0 else (0.0 if delta_aic > 0 else 1.0)
     return a1, b1, aic0, aic1, p1, x_base
 
-# (binomial_trend_analyze, clean_value_user, is_data_acceptable, main loop)
-# 以降は元ファイルの処理フローに沿って run_bayes_kde_improved を呼ぶだけで良いです。
+# 検出下限ではなく、低濃度の割合を二項回帰で解析するための関数。全検出でも意味を成すパーセンタイル値を使用して二項化する。
+def binomial_trend_percentile(df, percentile=0.25):
+    threshold = df['concentration'].quantile(percentile)
+    df_work = df.copy()
+    df_work['low_flag'] = (df_work['concentration'] < threshold).astype(int)
+    return binomial_trend_analyze(df_work, flag_col='low_flag')
 
-# --- 使い方メモ ---
-# あなたのメインループでは、MLEで a,b を求めたあとに:
-#
-# residuals_mle = y_true - (a * x_centered + b)
-# fixed_kde = safe_gaussian_kde(residuals_mle, bw_method=0.8)   # bw_method は調整可
-# bayes_res = run_bayes_kde_improved(df, fixed_kde, bw_method=None,
-#                                    n_walkers=50, n_steps=3000, burn_frac=0.5, verbose=True)
-#
-# でベイズ結果が得られます。
-#
-# bayes_res の中身:
-#  - "a_mean", "b_mean" : 事後平均
-#  - "a_ci", "b_ci"     : 95%信用区間
-#  - "p_neg_slope"      : P(a < 0)
-#  - "autocorr_time"    : 自己相関時間（推定不可の場合 nan）
-#  - "Rhat"             : Gelman-Rubin様診断値（1に近ければOK）
-#
-# bw_method の目安:
-#   - None (scott) / 'silverman' / float (0.5-1.5) を試して安定性確認してください。
-#
-def binomial_trend_analyze(df):
-    """二項回帰モデルによる低濃度地点の傾向分析。"""
-    unified_dl = df['detection_limit'].max()
-    df['low_flag'] = (df['concentration'] < unified_dl).astype(int)
+
+def binomial_trend_analyze(df, flag_col=None):
+    """
+    二項ロジスティック回帰分析を行う関数
+    - flag_col が指定されていればその列(0/1)を使用
+    - 指定がなければ detection_limit と concentration から判定
+    #　比率 y_ratio = low_count / total_count を渡してた誤りを成功数・失敗数に正しく修正
+    """
+    df_work = df.copy()
     
-    yearly_data = df.groupby('year').agg(
+    # 1. 0/1 フラグ列の確定
+    if flag_col is not None and flag_col in df_work.columns:
+        df_work['low_flag'] = df_work[flag_col].astype(int)
+    elif 'low_flag' in df_work.columns:
+        pass # すでに low_flag があればそのまま使用
+    elif 'binary' in df_work.columns:
+        df_work['low_flag'] = df_work['binary'].astype(int)
+    elif 'detection_limit' in df_work.columns and 'concentration' in df_work.columns:
+        unified_dl = df_work['detection_limit'].max()
+        df_work['low_flag'] = (df_work['concentration'] < unified_dl).astype(int)
+    else:
+        raise KeyError("二項化に必要な列 ('low_flag', 'binary', または 'detection_limit'/'concentration') が見つかりません。")
+
+    # 2. 年ごとに「フラグ(1)の数 (low_count)」と「フラグ(0)の数 (not_low_count)」を集計
+    yearly_data = df_work.groupby('year').agg(
         low_count=('low_flag', 'sum'),
         total_count=('low_flag', 'count')
     ).reset_index()
-
+    
+    yearly_data['not_low_count'] = yearly_data['total_count'] - yearly_data['low_count']
+    
     x_year = yearly_data['year'].astype(float).to_numpy()
     X1 = sm.add_constant(x_year).astype(float)
-
-    low_count = yearly_data['low_count'].astype(float).to_numpy()
-    total_count = yearly_data['total_count'].astype(float).to_numpy()
-
-    with np.errstate(divide='ignore', invalid='ignore'):
-        y_ratio = np.where(total_count > 0, low_count / total_count, np.nan)
-
-    n_weights = total_count
-
-    valid_mask = (~np.isnan(y_ratio)) & (~np.isnan(X1).any(axis=1)) & (~np.isnan(n_weights)) & (n_weights > 0)
+    
+    # 応答変数を [成功数(1), 失敗数(0)] の2列行列として作成
+    y_binomial = yearly_data[['low_count', 'not_low_count']].to_numpy().astype(float)
+    
+    # 有効データのフィルタリング
+    valid_mask = (yearly_data['total_count'] > 0) & (~np.isnan(X1).any(axis=1))
     X1 = X1[valid_mask]
-    y_ratio = y_ratio[valid_mask]
-    n_weights = n_weights[valid_mask]
-    X0 = np.ones((len(y_ratio), 1), dtype=float)
+    y_binomial = y_binomial[valid_mask]
+    
+    if len(y_binomial) == 0:
+        return np.nan, np.nan, np.nan, np.nan
 
+    X0 = np.ones((len(y_binomial), 1), dtype=float)
+    
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always", category=PerfectSeparationWarning)
-        model1 = sm.GLM(y_ratio, X1, family=sm.families.Binomial())
-        model1_fit = model1.fit(freq_weights=n_weights)
+        
+        model1 = sm.GLM(y_binomial, X1, family=sm.families.Binomial())
+        model1_fit = model1.fit()
         aic1 = model1_fit.aic
         
-        model0 = sm.GLM(y_ratio, X0, family=sm.families.Binomial())
-        model0_fit = model0.fit(freq_weights=n_weights)
+        model0 = sm.GLM(y_binomial, X0, family=sm.families.Binomial())
+        model0_fit = model0.fit()
         aic0 = model0_fit.aic
-
+        
     delta_aic = aic1 - aic0
     numerator = np.exp(-0.5 * delta_aic)
     p1 = numerator / (1 + numerator)
-
     slope = model1_fit.params[1] if len(model1_fit.params) > 1 else np.nan
-
+    
     return aic0, aic1, p1, slope
+
 
 def clean_value_user(val):
     if isinstance(val, str):
@@ -480,7 +485,11 @@ def is_data_acceptable(a, p1, ci):
 # ------------------------------------------------    
 # 処理対象ファイル名リスト
 #filenames = ["HCB大気温暖期2013"]
-filenames = ["PFOS大気温暖期"]
+#filenames = ["PFOS大気温暖期"]
+filenames = ["水質"]
+#target_substance = "cis-クロルデン"  # 例として特定の物質に絞る場合
+target_substance = "α-HCH"  # 例として特定の物質に絞る場合
+
 for filename in filenames:
     print(f"\n\n==================== ファイル処理開始: {filename} ====================")
 
@@ -511,8 +520,14 @@ for filename in filenames:
     df_all.to_csv(output_path, index=False, encoding="utf-8")
     print(f"→ 変換後のデータを保存しました: {output_path}")
 
+    if target_substance:
+        print(f"対象物質に絞る: {target_substance}")
+        df_all = df_all[df_all['substance'] == target_substance]  # 例として特定の物質に絞る場合 debaug用
+    else:
+        print("対象物質: 全ての物質を処理します。")
 
     substances = df_all['substance'].unique()
+
     print(f"対象物質: {substances}")
 
     results = []
@@ -617,8 +632,9 @@ for filename in filenames:
             b_bayes = bayes_res["b_mean"]
             ci_a = bayes_res["a_ci"]
             ci_b = bayes_res["b_ci"]
+
             p_neg_slope = bayes_res["p_neg_slope"] 
-            
+            p_neg_slope = np.clip(p_neg_slope, 0.0, 1.0)  # 安全のためクリップ
             print(f"ベイズ推定 a = {a_bayes:.4f} (95% CI {ci_a})")
             print(f"ベイズ推定 b = {b_bayes:.4f} (95% CI {ci_b})")
             print(f"減少傾向の事後確率 P(a < 0) = {p_neg_slope:.4f}")
@@ -628,7 +644,7 @@ for filename in filenames:
 
         except Exception as e:
             print("ベイズ推定失敗:", e)
-            a_bayes, ci_a, bayes_trend = np.nan, [np.nan, np.nan], "エラー"
+            a_bayes, ci_a, bayes_trend, p_neg_slope = np.nan, [np.nan, np.nan], "エラー", np.nan
 
         #-----------------------------------------
         # ③ ブートストラップ検定
@@ -660,14 +676,35 @@ for filename in filenames:
             print("\n--- 4. 二項回帰モデル ---") 
             df_binomial = df[['year', 'concentration', 'detection_limit']].copy()
             aic0_bin, aic1_bin, p1_bin, a_bin = binomial_trend_analyze(df_binomial)
-            
             print(f"傾き a = {a_bin:.4f}, オッズ比 ≈ {math.exp(a_bin):.4f}, AIC事後確率 p1 = {p1_bin:.3f}")
             trend_bin = "傾向あり" if p1_bin >= 0.95 else "傾向なし"
             print(f"→ {trend_bin}")
+
+            aic0_bin_p25, aic1_bin_p25, p1_bin_p25, a_bin_p25 = binomial_trend_percentile(df_binomial, 0.025)
+            print(f"傾き a = {a_bin_p25:.4f}, オッズ比 ≈ {math.exp(a_bin_p25):.4f}, AIC事後確率 p1 = {p1_bin_p25:.3f}")
+            trend_bin_p25 = "傾向あり" if p1_bin_p25 >= 0.95 else "傾向なし"
+            print(f"→ {trend_bin_p25}")
+
+            aic0_bin_p75, aic1_bin_p75, p1_bin_p75, a_bin_p75 = binomial_trend_percentile(df_binomial, 0.75)
+            print(f"傾き a = {a_bin_p75:.4f}, オッズ比 ≈ {math.exp(a_bin_p75):.4f}, AIC事後確率 p1 = {p1_bin_p75:.3f}")
+            trend_bin_p75 = "傾向あり" if p1_bin_p75 >= 0.95 else "傾向なし"
+            print(f"→ {trend_bin_p75}")
+
+            aic0_bin_p95, aic1_bin_p95, p1_bin_p95, a_bin_p95 = binomial_trend_percentile(df_binomial, 0.975)
+            print(f"傾き a = {a_bin_p95:.4f}, オッズ比 ≈ {math.exp(a_bin_p95):.4f}, AIC事後確率 p1 = {p1_bin_p95:.3f}")
+            trend_bin_p95 = "傾向あり" if p1_bin_p95 >= 0.95 else "傾向なし"
+            print(f"→ {trend_bin_p95}")
+
         except Exception as e:
             print(f"二項回帰エラー: {e}")
             trend_bin = "エラー"
-            a_bin, p1_bin = np.nan, np.nan
+            a_bin = np.nan
+            p1_bin = np.nan
+
+            a_bin_p = np.nan
+            p1_bin_p = np.nan
+            trend_bin_p = "エラー"
+
 
         # ⑤ プロット
         try:
@@ -721,74 +758,178 @@ for filename in filenames:
             'intercept_MLE': b,
             'p1_MLE': p1,
             'trend_MLE': trend,
+
             'bootstrap_CI': ci_bs,
             'bs_trend': bs_trend,
+
             'binomial_slope': a_bin,
             'binomial_p1': p1_bin,
             'binomial_trend': trend_bin,
+
+
+            'binomial_slope_p25': a_bin_p25,
+            'binomial_p1_p25': p1_bin_p25,
+            'binomial_trend_p25': trend_bin_p25,
+            'binomial_slope_p75': a_bin_p75,
+            'binomial_p1_p75': p1_bin_p75,
+            'binomial_trend_p75': trend_bin_p75,
+            'binomial_slope_p95': a_bin_p95,
+            'binomial_p1_p95': p1_bin_p95,
+            'binomial_trend_p95': trend_bin_p95,
+
             'bayes_slope': a_bayes,
+            'bayes_intercept': b_bayes,
             'bayes_CI_a': ci_a,
+            'bayes_CI_b': ci_b,
+            'p_neg_slope': p_neg_slope,
             'bayes_trend': bayes_trend,
             'reliability': reliability
         })
 
 
-    # 桁数を整える
-    for r in results:
-        r['bootstrap_CI'] = [round(r['bootstrap_CI'][0], 4), round(r['bootstrap_CI'][1], 4)]
-        r['bayes_CI_a'] = [round(r['bayes_CI_a'][0], 4), round(r['bayes_CI_a'][1], 4)]
-        r['slope_MLE'] = round(r['slope_MLE'], 4)
-        r['intercept_MLE'] = round(r['intercept_MLE'], 4)
-        r['binomial_slope'] = round(r['binomial_slope'], 4)
-        r['p1_MLE'] = round(r['p1_MLE'], 4)
-        r['binomial_p1'] = round(r['binomial_p1'], 4)
-        r['bayes_slope'] = round(r['bayes_slope'], 4)
-    
-    df_results = pd.DataFrame(results)
-    print("\n--- 最終結果（テーブル形式） ---")
-    print(df_results.to_string(index=False))
-
-    df_results.to_csv(f"{filename}_2025_reliable.csv", index=False, encoding='utf-8-sig')
-
-    # HTMLレポート作成
-    html_path = f"outputs/{filename}_regression_report_2024_01.html"
-    with open(html_path, "w", encoding="utf-8") as f:
-        f.write(f"<html><head><meta charset='utf-8'><title>{filename} 回帰分析レポート</title></head><body>")
-        f.write("<h1>回帰分析レポート</h1>")
-
+        # 桁数を整える
         for r in results:
-            if max(r['year'])>0:
-                filename_safe = f"{r['substance']}_{filename}".replace("'", "").replace(",", "_").replace(" ", "_").replace("/", "_")
-                image_path = os.path.join(PLOT_DIR, f"{filename_safe}_regression.png")
-                
-                f.write("<hr>")
-                f.write(f"<h2>{r['substance']}</h2>")
-                f.write(f"<p><b>対象:</b> {filename}<br>")
-                f.write(f"<b>年データ:</b> {r['year']}<br>")
-                f.write("<h3>傾向分析結果 (MLE/AIC)</h3>")
-                f.write(f"<b>傾き (MLE):</b> {r['slope_MLE']}<br>")
-                f.write(f"<b>AIC事後確率 p1:</b> {r['p1_MLE']}<br>")
-                f.write(f"<b>傾向判定 (MLE):</b> {r['trend_MLE']}<br>")
-                f.write("<h3>ブートストラップ検定</h3>")
-                f.write(f"<b>CI (平均差):</b> {r['bootstrap_CI']}<br>")
-                f.write(f"<b>傾向判定 (Boot):</b> {r['bs_trend']}<br>")
-                f.write("<h3>ベイズ MCMC (KDE尤度)</h3>")
-                f.write(f"<b>傾き平均 (ベイズ):</b> {r['bayes_slope']}<br>")
-                f.write(f"<b>傾き95%信用区間:</b> {r['bayes_CI_a']}<br>")
-                f.write(f"<b>傾向判定 (ベイズ):</b> {r['bayes_trend']}</p>")
-                f.write("<h3>二項回帰</h3>")
-                f.write(f"<b>傾き:</b> {r['binomial_slope']}<br>")
-                f.write(f"<b>AIC事後確率 p1:</b> {r['binomial_p1']}<br>")
-                f.write(f"<b>傾向判定:</b> {r['binomial_trend']}</p>")
+            r['bootstrap_CI'] = [round(r['bootstrap_CI'][0], 4), round(r['bootstrap_CI'][1], 4)]
+            r['bayes_CI_a'] = [round(r['bayes_CI_a'][0], 4), round(r['bayes_CI_a'][1], 4)]
+            r['slope_MLE'] = round(r['slope_MLE'], 4)
+            r['intercept_MLE'] = round(r['intercept_MLE'], 4)
+            r['binomial_slope'] = round(r['binomial_slope'], 4)
+            r['p1_MLE'] = round(r['p1_MLE'], 4)
+            r['binomial_p1'] = round(r['binomial_p1'], 4)
+            r['bayes_slope'] = round(r['bayes_slope'], 4)
+            r['bayes_intercept'] = round(r['bayes_intercept'], 4)
+            r['p_neg_slope'] = round(r['p_neg_slope'], 4)
+
+        df_results = pd.DataFrame(results)
+        print("\n--- 最終結果（テーブル形式） ---")
+        print(df_results.to_string(index=False))
+
+        df_results.to_csv(f"{filename}_{substance}_2025_reliable.csv", index=False, encoding='utf-8-sig')
+
+        # HTMLレポート作成
+        html_path = f"outputs/{filename}_{substance}_report.html"
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(f"<html><head><meta charset='utf-8'><title>{filename} 回帰分析レポート</title></head><body>")
+            f.write("<h1>回帰分析レポート</h1>")
+
+            for r in results:
+                if max(r['year'])>0:
+                    filename_safe = f"{r['substance']}_{filename}".replace("'", "").replace(",", "_").replace(" ", "_").replace("/", "_")
+                    image_path = os.path.join(PLOT_DIR, f"{filename_safe}_regression.png")
+                    
+                    f.write("<h r>")
+                    f.write(f"<h2>{r['substance']}</h2>")
+                    f.write(f"<p><b>対象:</b> {filename}<br>")
+                    f.write(f"<b>年データ:</b> {r['year']}<br>")
+
+                    f.write("<h3>傾向分析結果 (MLE/AIC)</h3>")
+                    f.write(f"<b>傾き (MLE):</b> {r['slope_MLE']}<br>")
+                    f.write(f"<b>AIC事後確率 p1:</b> {r['p1_MLE']}<br>")
+                    f.write(f"<b>傾向判定 (MLE):</b> {r['trend_MLE']}<br>")
+
+                    f.write("<h3>ブートストラップ検定</h3>")
+                    ci_low, ci_high = r['bootstrap_CI']
+                    f.write(f"<b>平均値差の95%信頼区間:</b> {float(ci_low):.3f}, {float(ci_high):.3f}<br>")
+
+                    #f.write(f"<b>CI (平均差):</b> {r['bootstrap_CI']}<br>")
+                    f.write(f"<b>傾向判定 (Boot):</b> {r['bs_trend']}<br>")
 
 
-                if os.path.exists(image_path):
-                    f.write(f"<img src='{image_path}' width='600'><br>")
+                    f.write("<h3>二項回帰</h3>")
+                    f.write(f"<b>検出下限最大値:</b> {df['detection_limit'].max():.01f}<br>")                   
+                    f.write(f"<b>傾き:</b> {r['binomial_slope']}<br>")
+                    f.write(f"<b>AIC事後確率 p1:</b> {r['binomial_p1']}<br>")
+                    f.write(f"<b>傾向判定:</b> {r['binomial_trend']}<br>")
+                    f.write(f"<b>25パーセンタイル値:</b> {df['concentration'].quantile(0.25):.01f}<br>")   
+                    f.write(f"<b>25%タイル傾き:</b> {r['binomial_slope_p25']:.04f}<br>")
+                    f.write(f"<b>AIC事後確率 p1:</b> {r['binomial_p1_p25']:.04f}<br>")
+                    f.write(f"<b>傾向判定:</b> {r['binomial_trend_p25']}<br>")
+                    f.write(f"<b>75パーセンタイル値:</b> {df['concentration'].quantile(0.75):.01f}<br>")   
+                    f.write(f"<b>75%タイル傾き:</b> {r['binomial_slope_p75']:.04f}<br>")
+                    f.write(f"<b>AIC事後確率 p1:</b> {r['binomial_p1_p75']:.04f}<br>")
+                    f.write(f"<b>傾向判定:</b> {r['binomial_trend_p75']}<br>")
+                    f.write(f"<b>95パーセンタイル値:</b> {df['concentration'].quantile(0.95):.01f}<br>")   
+                    f.write(f"<b>95%タイル傾き:</b> {r['binomial_slope_p95']:.04f}<br>")
+                    f.write(f"<b>AIC事後確率 p1:</b> {r['binomial_p1_p95']:.04f}<br>")
+                    f.write(f"<b>傾向判定:</b> {r['binomial_trend_p95']}<br>")
+
+                    f.write("<h3>ベイズ MCMC (KDE尤度)</h3>")
+
+                    f.write(f"<b>傾き平均 (ベイズ):</b> {r['bayes_slope']}<br>")
+                    f.write(f"<b>切片平均 (ベイズ):</b> {r['bayes_intercept']}<br>")
+                    ci_low, ci_high = r['bayes_CI_a']
+                    f.write(f"<b>傾き95%信用区間:</b> {float(ci_low):.03f}, {float(ci_high):.03f}<br>")
+                    ci_low, ci_high = r['bayes_CI_b']
+                    f.write(f"<b>切片95%信用区間:</b> {float(ci_low):.03f}, {float(ci_high):.03f}<br>")
+
+                    f.write(f"<b>減少傾向の事後確率 P(a<0):</b> {r['p_neg_slope']}<br>")
+                    f.write(f"<b>傾向判定 (ベイズ):</b> {r['bayes_trend']}<br>")
+
+
+                    if os.path.exists(image_path):
+                        f.write(f"<p><img src='{image_path}' width='600'><br></p>")
+                    else:
+                        f.write("<p><i>グラフ画像が見つかりませんでした。</i></p>")
                 else:
-                    f.write("<p><i>グラフ画像が見つかりませんでした。</i></p>")
-            else:
-                continue
+                    continue
 
-        f.write("</body></html>")
+            f.write("</body></html>")
 
-    print(f"\n→ HTMLレポートを作成しました: {html_path}")
+        print(f"\n→ HTMLレポートを作成しました: {html_path}")
+
+#HTMLへの図の埋め込み処理のために追加
+import base64
+import mimetypes
+from pathlib import Path
+from bs4 import BeautifulSoup
+
+def embed_images_in_html(input_html_path, output_html_path):
+    input_path = Path(input_html_path)
+    base_dir = input_path.parent  # 画像相対パスの基準ディレクトリ
+
+    # 1. HTMLファイルの読み込み
+    with open(input_path, "r", encoding="utf-8") as f:
+        soup = BeautifulSoup(f.read(), "html.parser")
+
+    # 2. すべての <img> タグを処理
+    for img in soup.find_all("img"):
+        src = img.get("src")
+        if not src:
+            continue
+
+        # すでにBase64化されている場合やWeb URL(http/https)はスキップ
+        if src.startswith("data:") or src.startswith(("http://", "https://")):
+            continue
+
+        # 画像ファイルのパス解決
+        img_path = (base_dir / src).resolve()
+
+        if img_path.exists() and img_path.is_file():
+            # MIMEタイプの取得（例: image/png, image/jpeg）
+            mime_type, _ = mimetypes.guess_type(img_path)
+            if not mime_type:
+                mime_type = "image/png"  # 判定できない場合のデフォルト
+
+            # 画像データをBase64にエンコード
+            with open(img_path, "rb") as img_file:
+                encoded_string = base64.b64encode(img_file.read()).decode(
+                    "utf-8"
+                )
+
+            # src属性を Base64 データURI に置き換え
+            img.attrs["src"] = f"data:{mime_type};base64,{encoded_string}"
+            print(f"埋め込み成功: {src}")
+        else:
+            print(f"警告: 画像ファイルが見つかりません -> {img_path}")
+
+    # 3. 変換後のHTMLを出力
+    with open(output_html_path, "w", encoding="utf-8") as f:
+        f.write(str(soup))
+
+    print(f"\n変換完了: {output_html_path}")
+
+# 対象のHTMLファイルパスと出力先を指定してください
+output_html = f"examples/{filename}_{substance}_regression_report_example.html"
+input_html = html_path
+
+embed_images_in_html(input_html, output_html)

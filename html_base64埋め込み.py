@@ -53,7 +53,7 @@ def embed_images_in_html(input_html_path, output_html_path):
 # 実行
 if __name__ == "__main__":
     # 対象のHTMLファイルパスと出力先を指定してください
-    input_html = r"C:\GitHub\pops_trend_analysis_py\PY_pops_moe_analysis_plus\HCB大気温暖期2013_regression_report.html"
-    output_html =  r"C:\GitHub\pops_trend_analysis_py\PY_pops_moe_analysis_plus\examples\HCB大気温暖期2013_regression_report.html"
+    input_html = r"C:\GitHub\pops_trend_analysis_py\PY_emcee_kde_regression\outputs\HCB大気温暖期2013_regression_report_2024_01.html"
+    output_html =  r"C:\GitHub\pops_trend_analysis_py\PY_emcee_kde_regression\examples\HCB大気温暖期2013_regression_report_2024_01.html"
 
     embed_images_in_html(input_html, output_html)
