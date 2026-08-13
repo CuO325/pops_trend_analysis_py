@@ -59,8 +59,13 @@ PY_MOE_KDE_AIC
 ND（concentration ≤ detection_limit）の場合、濃度は以下の式で代替値に置き換えます：
 
 $$
-\text{concentration\_sub} = \frac{\text{detection\_limit}}{\sqrt{2}}
+\mathrm{concentration\_sub} = \frac{\mathrm{detection\_limit}}{\sqrt{2}}
 $$
+
+$$
+\mathrm{concentrationSub} = \frac{\mathrm{detectionLimit}}{\sqrt{2}}
+$$
+
 
 その後、この代替値に対して常用対数を取り、`log_conc` を作成します。
 
