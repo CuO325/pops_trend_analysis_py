@@ -1,39 +1,42 @@
-**KDE‑MLE（simple / iterative）・ブートストラップ・二項ロジスティック回帰・ND 補正・物質別処理**まで含む総合的な POPs トレンド解析パイプラインになっています。
-
 
 
 ---
 
-# 📘 README — POPs Trend Analysis Pipeline (KDE‑MLE / Bootstrap / Logistic Model)
+# 📘 README — POPs Trend Analysis (KDE‑MLE / Bootstrap / Logistic Model　環境省法)
 
 ## 📌 概要
 
-本リポジトリは、**POPs（残留性有機汚染物質）等の環境データに対して、  
-年次トレンドを多角的に評価する解析パイプライン**です。
-
-以下の 4 種類の統計モデルを組み合わせて、  
-**濃度の増減傾向（トレンド）を総合判定**します。
+本リポジトリは、**POPs（残留性有機汚染物質）等の環境データに対して、年次トレンドを多角的に評価する解析スクリプト**です。
+環境省のPOPsモニタリングの増減傾向の判断に利用している統計モデルを組み合わせて、**濃度の増減傾向（トレンド）を判定**します。
+**KDE‑MLE（simple / iterative）・ブートストラップ・二項ロジスティック回帰・ND 補正・物質別処理**まで含む総合的な 傾向解析なっています。
+MCMCなどの計算負荷の高いジョブは組み込んでいないので、軽量です。
 
 1. **KDE‑MLE（simple）**  
 2. **KDE‑MLE（iterative）**  
 3. **ブートストラップによる前期・後期比較**  
 4. **二項ロジスティック回帰（ND 割合のトレンド）**
 
-ND（不検出）データの補正、物質別解析、地点別集計、AIC によるモデル選択など、  
-環境データ解析に必要な処理をすべて自動化しています。
+ND（不検出）データの補正、物質別解析、地点別集計、AIC によるモデル選択など、環境データ解析に必要な処理をすべて自動化しています。
+データ例は環境省の公表値ですが、環境省とは異なる前処理法を経て解析に投入するデータが異なるので、環境省の増減傾向にの公表とは必ずしも一致はしません。
+全く同じ判定結果を得るには前処理法を変更する必要があります。
 
+プロット画像付きの解析モデルのPY版（PY_pops_moe_analysis_plusなど）やブラウザ上で操作するST版（ST_ti_fft_kde_regression）もあります。
 ---
 
 ## 📁 ディレクトリ構成
 
 ```
-project/
-├── data/                # 入力 CSV（物質別）
-├── outputs/             # 自動生成される解析結果
-├── module/
-│   └── module_kde_mle_2a.py   # KDE-MLE の実装
-├── main.py              # 本 README のコード
-└── README.md
+PY_MOE_KDE_AIC
+    └──kde_mle/  
+        └──kde_mle/                
+            ├── data/                # 入力 .csv
+            ├── outputs/             # 自動生成される解析結果 .csv
+            ├──　examples/
+            ├── module/
+            │   └── module_kde_mle_2a.py                 # KDE-MLE の実装
+            ├── kde_mle_iterative_v1_1c.py               # 本 README のコード
+            └── README.md
+
 ```
 
 ---
@@ -200,7 +203,8 @@ MIT
 
 ## 🙋‍♂️ サポート
 
-ありません。プロット画像付きの解析モデル（NumPyro 版、Bayesian 版など）もあります。
+ありません。
+
 
 ---
 
