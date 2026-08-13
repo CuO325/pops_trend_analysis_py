@@ -5,7 +5,7 @@
 # 📘 README — kde_mle_iterative_v1_1c.py
 ## KDE‑MLE / Bootstrap / Logistic Model　(環境省法)
 
-##### ND（不検出）データの補正、物質別解析、地点別集計、AIC によるモデル選択など、環境データ解析に必要な処理をすべて自動化しています。データ例は環境省の公表値ですが、環境省とは異なる前処理法を経て解析に投入するデータが異なるので、環境省の増減傾向にの公表とは必ずしも一致はしません。全く同じ判定結果を得るには前処理法を変更する必要があります。
+##### ND（不検出）データの補正、物質別解析、地点別集計、AIC によるモデル選択など、環境データ解析に必要な処理をすべて自動化しています。データ例は環境省の公表値ですが、環境省とは異なる前処理法を経て解析に投入するデータが異なるので、環境省の増減傾向にの公表とは必ずしも一致はしません。全く同じ判定結果を得るには前処理部分を変更する必要があります。
 ---
 ## 📌 概要
 
@@ -56,15 +56,11 @@ PY_MOE_KDE_AIC
 
 ## 🧪 ND（不検出）データの扱い
 
-ND（concentration ≤ detection_limit）の場合、濃度は以下の式で代替値に置き換えます：
+ND（`concentration` ≤ `detection_limit`）の場合、濃度は以下の式で代替値に置き換えます：
 
-$$
-\mathrm{concentration\_sub} = \frac{\mathrm{detection\_limit}}{\sqrt{2}}
-$$
+`concentration_sub = detection_limit / sqrt(2)`
 
 その後、この代替値に対して常用対数を取り、`log_conc` を作成します。
-
-
 
 ---
 
@@ -194,6 +190,7 @@ if len(df) < 24:
 - emcee  
 - tqdm  
 
+pip install pandas numpy scipy statsmodels scikit-learn matplotlib emcee tqdm
 ---
 
 ## 📄 ライセンス
@@ -202,9 +199,8 @@ MIT
 
 ---
 
-## 🙋‍♂️ サポート
-
-ありません。
+## 🙋‍♂️ サポート・お問い合わせ
+個人ライブラリのため個別サポートは原則行っておりません。バグ報告や機能要望がある場合は GitHub の Issues よりお知らせください。
 
 
 ---
