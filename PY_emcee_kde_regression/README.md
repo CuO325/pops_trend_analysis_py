@@ -1,9 +1,9 @@
 
-# POPs Trend Analysis (pops_trend_analysis_py)
+# POPs Trend Analysis (pops_trend_analysis_v1.1a)
 
 **POPs Trend Analysis** は、環境化学物質（POPs: 残留性有機汚染物質など）の経年モニタリングデータを統計的・ベイズ的手法を用いて解析し、トレンド（増加・減少傾向）を評価するための Python パッケージ・スクリプト集です。
 
-対数線形回帰（最尤推定法: MLE）をはじめ、残差KDE（カーネル密度推定）を活用した MCMC ベイズ推論 (`emcee`)、二項回帰モデル（GLM）、ブートストラップ法による多角的な比較分析に対応しています。
+対数線形回帰（最尤推定法: MLE）をはじめ、残差KDE（カーネル密度推定）を活用した MCMC ベイズ推論 (`emcee`)、二項回帰モデル（GLM）、ブートストラップ法による多角的な比較分析に対応しています。本スクリプト集の原型です。
 
 ---
 
@@ -15,7 +15,7 @@
   - モデルの適合度を AIC（赤池情報量規準）に基づき評価・比較します。
 - **KDE 尤度ベイズ推定 (MCMC / `emcee`)**
   - 残差分布にノンパラメトリックな KDE を適用し、より現実的な分布形状を考慮したベイズ推論を実施します。
-  - 収束・信用区間幅に基づく自動早期停止（Auto-Stop）アルゴリズムを標準搭載。
+  - 収束・信用区間幅に基づく自動早期停止（Auto-Stop）アルゴリズムを標準搭載。快適な実行には性能の高い計算資源を要します。
 - **低濃度・不検出データの解析（二項回帰モデル）**
   - 検出限界（DL）以下の比率変化を Binomial GLM でモデル化し、定量値化しにくい低濃度域の評価に対応。
 - **期間分割ブートストラップ検定**
@@ -99,10 +99,10 @@ pip install numpy pandas matplotlib scipy scikit-learn statsmodels emcee japaniz
 
 ### 実行方法
 
-`PY_emcee_kde_regression/pops_trend_analysis_v1.1.py` 内の対象ファイル名 (`filenames`) を設定の上、実行します。
+`PY_emcee_kde_regression/pops_trend_analysis_v1.1a.py` 内の対象ファイル名 (`filenames`)と必要であれば物質名（`substance`）を設定の上、実行します。通常の上位PCで、数十分単位の計算時間が必要です。
 
 ```bash
-python PY_emcee_kde_regression/pops_trend_analysis_v1.1.py
+python PY_emcee_kde_regression/pops_trend_analysis_v1.1a.py
 
 ```
 
@@ -115,7 +115,7 @@ python PY_emcee_kde_regression/pops_trend_analysis_v1.1.py
 2. **回帰プロット** (`plots_regression/`)
 * 実測データ、検出限界、MLE 回帰直線をプロットした画像ファイル。
 
-
+3. **HTMLファイル**（`outputs/`,`examples`）
 
 ---
 
