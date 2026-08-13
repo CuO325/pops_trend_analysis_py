@@ -56,13 +56,18 @@ PY_MOE_KDE_AIC
 
 ## 🧪 ND（不検出）データの扱い
 
-ND（concentration ≤ detection_limit）は以下で補正します：
+ND（concentration ≤ detection_limit）の場合、濃度は以下の式で代替値に置き換えます：
 
-$$
+
+
+\[
 \text{concentration\_sub} = \frac{\text{detection\_limit}}{\sqrt{2}}
-$$
+\]
 
-その後、常用対数を取って `log_conc` を作成します。
+
+
+その後、この代替値に対して常用対数を取り、`log_conc` を作成します。
+
 
 ---
 
