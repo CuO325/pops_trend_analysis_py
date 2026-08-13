@@ -7,7 +7,7 @@
 
 ---
 
-![plot](examples/ペルフルオロオクタンスルホン酸（PFOS）_PFOS大気温暖期_regression.png)
+![plot](examples/総PCB_PCBwater_regression.png)
 
 ## 概要・主な機能
 
