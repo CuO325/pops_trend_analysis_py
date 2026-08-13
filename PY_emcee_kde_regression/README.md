@@ -3,7 +3,8 @@
 
 **POPs Trend Analysis** は、環境化学物質（POPs: 残留性有機汚染物質など）の経年モニタリングデータを統計的・ベイズ的手法を用いて解析し、トレンド（増加・減少傾向）を評価するための Python パッケージ・スクリプト集です。
 
-対数線形回帰（最尤推定法: MLE）をはじめ、残差KDE（カーネル密度推定）を活用した MCMC ベイズ推論 (`emcee`)、二項回帰モデル（GLM）、ブートストラップ法による多角的な比較分析に対応しています。本スクリプト集の原型です。
+対数線形回帰（最尤推定法: MLE）をはじめ、残差KDE（カーネル密度推定）を活用した MCMC ベイズ推論 (`emcee`)、二項回帰モデル（GLM）、ブートストラップ法による多角的な比較分析に対応しています。本スクリプト:pops_trend_analysis_v1.1a.pyは、名称の通り、本サイト集の原型であり、メモリアルの位置づけです。
+MCMC（`emcee`）を使用するため計算時間を要します。
 
 ---
 
@@ -49,7 +50,7 @@
 ```text
 pops_trend_analysis_py/
 ├── PY_emcee_kde_regression/    # KDEベイズ回帰 (emcee) メイン処理
-│   └── pops_trend_analysis_v1.1.py
+│   └── pops_trend_analysis_v1.1a.py
 ├── PY_Hierarchical_emcee/       # 階層ベイズモデル (emcee)
 ├── PY_Hierarchical_numpyro/     # 階層ベイズモデル (NumPyro)
 ├── PY_MOE_KDE_AIC/              # MOE / KDE AIC 比較解析
