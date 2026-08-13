@@ -367,25 +367,36 @@ def neg_log_likelihood_0(params, x, y):
         return -log_likelihood
     except np.linalg.LinAlgError:
         return 1e10
-
+    
 def run_mle_and_aic(df):
     np.set_printoptions(precision=10, suppress=True)
+
     x_raw = df['year'].values
-    x_base = x_raw.min()
+    x_raw = df['year'].values
+    x_base = x_raw.mean()  # ★ 修正：平均値で中心化、 x_raw.min()からの修正
     x_centered = x_raw - x_base
+
     y = df['log_conc'].values
-    result = minimize(neg_log_likelihood, [-0.1, np.mean(y)], args=(x_centered, y), method='L-BFGS-B')
+
+    result = minimize(neg_log_likelihood, [-0.1, np.mean(y)],
+                      args=(x_centered, y), method='L-BFGS-B')
     a1, b1 = result.x
     max_log_likelihood_1 = -result.fun
-    result_0 = minimize(neg_log_likelihood_0, [np.mean(y)], args=(x_centered, y), method='L-BFGS-B')
+
+    result_0 = minimize(neg_log_likelihood_0, [np.mean(y)],
+                        args=(x_centered, y), method='L-BFGS-B')
     max_log_likelihood_0 = -result_0.fun
+
     aic1 = -2 * max_log_likelihood_1 + 2 * 2
     aic0 = -2 * max_log_likelihood_0 + 2 * 1
     delta_aic = aic1 - aic0
+
     numerator = np.exp(-0.5 * delta_aic)
     denominator = 1 + numerator
     p1 = numerator / denominator if denominator != 0 else (0.0 if delta_aic > 0 else 1.0)
+
     return a1, b1, aic0, aic1, p1, x_base
+
 
 # 検出下限ではなく、低濃度の割合を二項回帰で解析するための関数。全検出でも意味を成すパーセンタイル値を使用して二項化する。
 def binomial_trend_percentile(df, percentile=0.25):
@@ -486,9 +497,14 @@ def is_data_acceptable(a, p1, ci):
 # 処理対象ファイル名リスト
 #filenames = ["HCB大気温暖期2013"]
 #filenames = ["PFOS大気温暖期"]
-filenames = ["水質"]
-#target_substance = "cis-クロルデン"  # 例として特定の物質に絞る場合
-target_substance = "α-HCH"  # 例として特定の物質に絞る場合
+filenames = ["PCBwater"]
+target_substance = []
+#target_substance = ["δ-HCH", "o,p'-DDT"]  # 例として特定の物質に絞る場合,[]で全物質
+
+# プロット保存用ディレクトリを作成
+PLOT_DIR = "outputs/plots_regression"
+os.makedirs(PLOT_DIR, exist_ok=True)
+print(f"プロット画像は '{PLOT_DIR}' ディレクトリに保存されます。")
 
 for filename in filenames:
     print(f"\n\n==================== ファイル処理開始: {filename} ====================")
@@ -522,7 +538,7 @@ for filename in filenames:
 
     if target_substance:
         print(f"対象物質に絞る: {target_substance}")
-        df_all = df_all[df_all['substance'] == target_substance]  # 例として特定の物質に絞る場合 debaug用
+        df_all = df_all[df_all['substance'].isin(target_substance)]  # 例として特定の物質に絞る場合 debaug用
     else:
         print("対象物質: 全ての物質を処理します。")
 
@@ -531,12 +547,6 @@ for filename in filenames:
     print(f"対象物質: {substances}")
 
     results = []
-    
-    # プロット保存用ディレクトリを作成
-    PLOT_DIR = "plots_regression"
-    os.makedirs(PLOT_DIR, exist_ok=True)
-    print(f"プロット画像は '{PLOT_DIR}' ディレクトリに保存されます。")
-
 
     # 各物質ごとに処理
     for substance in substances:
@@ -560,7 +570,7 @@ for filename in filenames:
         # ① 最尤推定法 + AIC
         try:
             a, b, aic0, aic1, p1, x_base = run_mle_and_aic(df)
-            print("--- 1. 対数線形回帰モデル (MLE) ---")
+            print("--- 1. 対数線形回帰モデル (MLE/AIC 環境省法) ---")
             print(f"傾き a = {a:.4f}, 切片 b = {b:.4f}, AIC事後確率 p1 = {p1:.4f}")
             trend = "傾向あり" if p1 >= 0.95 else "傾向なし"
             print(f"→ {trend}")
@@ -807,7 +817,7 @@ for filename in filenames:
         df_results.to_csv(f"{filename}_{substance}_2025_reliable.csv", index=False, encoding='utf-8-sig')
 
         # HTMLレポート作成
-        html_path = f"outputs/{filename}_{substance}_report.html"
+        html_path = f"{filename}_{substance}_report.html"
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(f"<html><head><meta charset='utf-8'><title>{filename} 回帰分析レポート</title></head><body>")
             f.write("<h1>回帰分析レポート</h1>")
@@ -825,21 +835,25 @@ for filename in filenames:
                     f.write("<h3>傾向分析結果 (MLE/AIC)</h3>")
                     f.write(f"<b>傾き (MLE):</b> {r['slope_MLE']}<br>")
                     f.write(f"<b>AIC事後確率 p1:</b> {r['p1_MLE']}<br>")
-                    f.write(f"<b>傾向判定 (MLE):</b> {r['trend_MLE']}<br>")
+                    f.write(f"<b>傾向判定 (MLE/AIC　環境省法):</b> {r['trend_MLE']}<br>")
+                    f.write(f"<i>AIC事後確率 が0.95以上であるか</i><br><br>")
 
                     f.write("<h3>ブートストラップ検定</h3>")
                     ci_low, ci_high = r['bootstrap_CI']
                     f.write(f"<b>平均値差の95%信頼区間:</b> {float(ci_low):.3f}, {float(ci_high):.3f}<br>")
 
-                    #f.write(f"<b>CI (平均差):</b> {r['bootstrap_CI']}<br>")
-                    f.write(f"<b>傾向判定 (Boot):</b> {r['bs_trend']}<br>")
-
+                    #f.write(f"<b>CI (平均差):</b> {r['bootstrap_CI']}<br
+                    # >")
+                    f.write(f"<b>傾向判定 (環境省法):</b> {r['bs_trend']}<br>")
+                    f.write(f"<i>平均値差の95%信頼区間が０を跨がないか</i><br><br>")
 
                     f.write("<h3>二項回帰</h3>")
                     f.write(f"<b>検出下限最大値:</b> {df['detection_limit'].max():.01f}<br>")                   
                     f.write(f"<b>傾き:</b> {r['binomial_slope']}<br>")
                     f.write(f"<b>AIC事後確率 p1:</b> {r['binomial_p1']}<br>")
-                    f.write(f"<b>傾向判定:</b> {r['binomial_trend']}<br>")
+                    f.write(f"<b>傾向判定（環境省法）:</b> {r['binomial_trend']}<br>")
+                    f.write(f"<i>検出下限を下回るデータの割合が時間とともに増加しているか</i><br><br>")
+
                     f.write(f"<b>25パーセンタイル値:</b> {df['concentration'].quantile(0.25):.01f}<br>")   
                     f.write(f"<b>25%タイル傾き:</b> {r['binomial_slope_p25']:.04f}<br>")
                     f.write(f"<b>AIC事後確率 p1:</b> {r['binomial_p1_p25']:.04f}<br>")
@@ -852,6 +866,7 @@ for filename in filenames:
                     f.write(f"<b>95%タイル傾き:</b> {r['binomial_slope_p95']:.04f}<br>")
                     f.write(f"<b>AIC事後確率 p1:</b> {r['binomial_p1_p95']:.04f}<br>")
                     f.write(f"<b>傾向判定:</b> {r['binomial_trend_p95']}<br>")
+                    f.write(f"<i>パーセンタイル値を下回るデータの割合が時間とともに増加しているか</i><br><br>")
 
                     f.write("<h3>ベイズ MCMC (KDE尤度)</h3>")
 
@@ -864,6 +879,7 @@ for filename in filenames:
 
                     f.write(f"<b>減少傾向の事後確率 P(a<0):</b> {r['p_neg_slope']}<br>")
                     f.write(f"<b>傾向判定 (ベイズ):</b> {r['bayes_trend']}<br>")
+                    f.write(f"<i>減少傾向の事後確率が有意であり、傾きの95%信用区間が0を跨がないか</i><br><br>")
 
 
                     if os.path.exists(image_path):
@@ -873,63 +889,63 @@ for filename in filenames:
                 else:
                     continue
 
-            f.write("</body></html>")
+                f.write("</body></html>")
 
         print(f"\n→ HTMLレポートを作成しました: {html_path}")
 
-#HTMLへの図の埋め込み処理のために追加
-import base64
-import mimetypes
-from pathlib import Path
-from bs4 import BeautifulSoup
+        #公開時の利便性のため、HTMLにある図の埋め込み処理の追加　本来不要
+        import base64
+        import mimetypes
+        from pathlib import Path
+        from bs4 import BeautifulSoup
 
-def embed_images_in_html(input_html_path, output_html_path):
-    input_path = Path(input_html_path)
-    base_dir = input_path.parent  # 画像相対パスの基準ディレクトリ
+        def embed_images_in_html(input_html_path, output_html_path):
+            input_path = Path(input_html_path)
+            base_dir = input_path.parent  # 画像相対パスの基準ディレクトリ
 
-    # 1. HTMLファイルの読み込み
-    with open(input_path, "r", encoding="utf-8") as f:
-        soup = BeautifulSoup(f.read(), "html.parser")
+            # 1. HTMLファイルの読み込み
+            with open(input_path, "r", encoding="utf-8") as f:
+                soup = BeautifulSoup(f.read(), "html.parser")
 
-    # 2. すべての <img> タグを処理
-    for img in soup.find_all("img"):
-        src = img.get("src")
-        if not src:
-            continue
+            # 2. すべての <img> タグを処理
+            for img in soup.find_all("img"):
+                src = img.get("src")
+                if not src:
+                    continue
 
-        # すでにBase64化されている場合やWeb URL(http/https)はスキップ
-        if src.startswith("data:") or src.startswith(("http://", "https://")):
-            continue
+                # すでにBase64化されている場合やWeb URL(http/https)はスキップ
+                if src.startswith("data:") or src.startswith(("http://", "https://")):
+                    continue
 
-        # 画像ファイルのパス解決
-        img_path = (base_dir / src).resolve()
+                # 画像ファイルのパス解決
+                img_path = (base_dir / src).resolve()
 
-        if img_path.exists() and img_path.is_file():
-            # MIMEタイプの取得（例: image/png, image/jpeg）
-            mime_type, _ = mimetypes.guess_type(img_path)
-            if not mime_type:
-                mime_type = "image/png"  # 判定できない場合のデフォルト
+                if img_path.exists() and img_path.is_file():
+                    # MIMEタイプの取得（例: image/png, image/jpeg）
+                    mime_type, _ = mimetypes.guess_type(img_path)
+                    if not mime_type:
+                        mime_type = "image/png"  # 判定できない場合のデフォルト
 
-            # 画像データをBase64にエンコード
-            with open(img_path, "rb") as img_file:
-                encoded_string = base64.b64encode(img_file.read()).decode(
-                    "utf-8"
-                )
+                    # 画像データをBase64にエンコード
+                    with open(img_path, "rb") as img_file:
+                        encoded_string = base64.b64encode(img_file.read()).decode(
+                            "utf-8"
+                        )
 
-            # src属性を Base64 データURI に置き換え
-            img.attrs["src"] = f"data:{mime_type};base64,{encoded_string}"
-            print(f"埋め込み成功: {src}")
-        else:
-            print(f"警告: 画像ファイルが見つかりません -> {img_path}")
+                    # src属性を Base64 データURI に置き換え
+                    img.attrs["src"] = f"data:{mime_type};base64,{encoded_string}"
+                    print(f"埋め込み成功: {src}")
+                else:
+                    print(f"警告: 画像ファイルが見つかりません -> {img_path}")
 
-    # 3. 変換後のHTMLを出力
-    with open(output_html_path, "w", encoding="utf-8") as f:
-        f.write(str(soup))
+            # 3. 変換後のHTMLを出力
+            with open(output_html_path, "w", encoding="utf-8") as f:
+                f.write(str(soup))
 
-    print(f"\n変換完了: {output_html_path}")
+            print(f"\n変換完了:\n{input_html_path}\n -> {output_html_path}")
 
-# 対象のHTMLファイルパスと出力先を指定してください
-output_html = f"examples/{filename}_{substance}_regression_report_example.html"
-input_html = html_path
+        # 対象のHTMLファイルパスと出力先を指定してください
+        output_html = f"examples/{filename}_{substance}_regression_report_example.html"
+        input_html = html_path
 
-embed_images_in_html(input_html, output_html)
+        embed_images_in_html(input_html, output_html)
