@@ -2,7 +2,8 @@
 
 ---
 
-# 📘 README — POPs Trend Analysis (KDE‑MLE / Bootstrap / Logistic Model　環境省法)
+# 📘 README — kde_mle_iterative_v1_1c.py
+## KDE‑MLE / Bootstrap / Logistic Model　(環境省法)
 
 ##### ND（不検出）データの補正、物質別解析、地点別集計、AIC によるモデル選択など、環境データ解析に必要な処理をすべて自動化しています。データ例は環境省の公表値ですが、環境省とは異なる前処理法を経て解析に投入するデータが異なるので、環境省の増減傾向にの公表とは必ずしも一致はしません。全く同じ判定結果を得るには前処理法を変更する必要があります。
 ---
