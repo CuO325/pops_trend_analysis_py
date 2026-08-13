@@ -62,11 +62,6 @@ $$
 \mathrm{concentration\_sub} = \frac{\mathrm{detection\_limit}}{\sqrt{2}}
 $$
 
-$$
-\mathrm{concentrationSub} = \frac{\mathrm{detectionLimit}}{\sqrt{2}}
-$$
-
-
 その後、この代替値に対して常用対数を取り、`log_conc` を作成します。
 
 
