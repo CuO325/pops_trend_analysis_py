@@ -1,10 +1,8 @@
 
-# POPs Trend Analysis (pops_trend_analysis_v1.1a)
-
-**POPs Trend Analysis** は、環境化学物質（POPs: 残留性有機汚染物質など）の経年モニタリングデータを統計的・ベイズ的手法を用いて解析し、トレンド（増加・減少傾向）を評価するための Python パッケージ・スクリプト集です。
-
-対数線形回帰（最尤推定法: MLE）をはじめ、残差KDE（カーネル密度推定）を活用した MCMC ベイズ推論 (`emcee`)、二項回帰モデル（GLM）、ブートストラップ法による多角的な比較分析に対応しています。本スクリプト:pops_trend_analysis_v1.1a.pyは、名称の通り、本サイト集の原型であり、メモリアルの位置づけです。
-MCMC（`emcee`）を使用するため計算時間を要します。
+# 残差KDE（カーネル密度推定）を活用した環境省法　+ MCMC ベイズ推論 (`emcee`)
+##　pops_trend_analysis_v1.1a.py
+対数線形回帰（最尤推定法: MLE）に加え、残差KDE（カーネル密度推定）を活用した MCMC ベイズ推論 (`emcee`)、二項回帰モデル（GLM）、ブートストラップ法による比較分析に対応しています。
+本スクリプト:pops_trend_analysis_v1.1a.pyは、MCMC（`emcee`）を使用するため１物質当たり数十分の計算時間を要します。
 
 ---
 
@@ -13,7 +11,7 @@ MCMC（`emcee`）を使用するため計算時間を要します。
 ## 概要・主な機能
 
 - **最尤推定（MLE）による対数線形回帰 & AIC 比較**
-  - モデルの適合度を AIC（赤池情報量規準）に基づき評価・比較します。
+  - 残差分布にノンパラメトリックな KDE を適用し、モデルの適合度を AIC（赤池情報量規準）に基づき評価・比較します。
 - **KDE 尤度ベイズ推定 (MCMC / `emcee`)**
   - 残差分布にノンパラメトリックな KDE を適用し、より現実的な分布形状を考慮したベイズ推論を実施します。
   - 収束・信用区間幅に基づく自動早期停止（Auto-Stop）アルゴリズムを標準搭載。快適な実行には性能の高い計算資源を要します。
@@ -45,19 +43,20 @@ MCMC（`emcee`）を使用するため計算時間を要します。
 
 ---
 
-## ディレクトリ構成
+## 全体のディレクトリ構成
 
 ```text
 pops_trend_analysis_py/
-├── PY_emcee_kde_regression/    # KDEベイズ回帰 (emcee) メイン処理
-│   └── pops_trend_analysis_v1.1a.py
-├── PY_Hierarchical_emcee/       # 階層ベイズモデル (emcee)
-├── PY_Hierarchical_numpyro/     # 階層ベイズモデル (NumPyro)
-├── PY_MOE_KDE_AIC/              # MOE / KDE AIC 比較解析
-├── PY_pops_moe_analysis_plus/   # 拡張モデル群
-├── PY_ti_fft_kde_regression/    # FFTを用いたKDE高速化モデル
-├── ST_BREAK_POINTs/             # 変化点分析 (Breakpoint)
-├── ST_SARIMA_prediction/        # 時系列予測 (SARIMA)
+├── PY_emcee_kde_regression/     # ←💡ここです。KDEベイズ回帰 (emcee版　遅いです)
+│   └── pops_trend_analysis_v1.1a.py  
+├── PY_Hierarchical_emcee/       # 階層ベイズモデル (emcee版)　地点別の傾向分析
+├── PY_Hierarchical_numpyro/     # 階層ベイズモデル (NumPyro版)　地点別の傾向分析
+├── PY_MOE_KDE_AIC/              # MOE / KDE-AIC 比較解析　（環境省の黒本記載の方法です）
+├── PY_pops_moe_analysis_plus/   # 💡KDEベイズ回帰 (NumPyro版　速いです)
+│ 
+├── ST_ti_fft_kde_regression/    # 💡FFTを用いたKDE高速化モデル　(ブラウザ上で動作。TIも選択できます。ここのスクリプトが最新です。)
+├── ST_BREAK_POINTs/             # 変化点分析 (Breakpoint)　高頻度測定での季節変動を除外した経年変動を折れ線で解析します。
+├── ST_SARIMA_prediction/        # 時系列予測 (SARIMA) 高頻度測定の精度管理、警鐘のためのアプリです。
 └── README.md
 
 ```
