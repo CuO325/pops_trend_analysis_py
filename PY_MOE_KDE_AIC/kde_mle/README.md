@@ -177,6 +177,22 @@ if len(df) < 24:
     continue
 ```
 
+---
+
+
+## 🧩 依存ライブラリ
+
+- `pandas`
+- `numpy`
+- `scipy`
+- `statsmodels`
+- `scikit-learn`
+
+### 💡 インストール方法
+
+```bash
+pip install pandas numpy scipy statsmodels scikit-learn
+---
 
 ## 📄 ライセンス
 
