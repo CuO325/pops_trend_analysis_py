@@ -11,12 +11,16 @@
 残留性有機汚染物質（POPs）をはじめとする環境データの時系列解析や統計モデリングを行うためのPythonスクリプトおよびWebアプリケーション群です。  
 環境省（MOE）で採用されている統計手法(1)の再現から、MCMCを用いた階層ベイズモデル、FFT（高速フーリエ変換）との融合モデルまで、環境データの解析に必要な手法を網羅しています。
 
-##### [  (1)環境省(2025): 経年分析の方法等に関する補足説明 ]https://www.env.go.jp/chemi/kurohon/2025/shosai/3_8.pdf 
+[(1)環境省(2025): 経年分析の方法等に関する補足説明 ]https://www.env.go.jp/chemi/kurohon/2025/shosai/3_8.pdf 
+
 ---
 
 ## Current Status
+🚀 初めて利用する方は
 
-本リポジトリには複数の実装が含まれています。
+ST_ti_fft_kde_regression
+
+からお試しください。
 
 ### 推奨版（Current implementation）
 
