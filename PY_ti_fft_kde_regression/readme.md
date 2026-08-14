@@ -86,10 +86,11 @@ Gelman-Rubin統計量（R-hat）を用いてMCMC連鎖の収束状況を評価�
 
 周辺尤度は
 
-\[
+$$
 \log Z =
 \int_0^1 E_{\beta}[\log L] d\beta
-\]
+$$
+
 
 として計算されます。 
 
@@ -104,7 +105,7 @@ Gelman-Rubin統計量（R-hat）を用いてMCMC連鎖の収束状況を評価�
 
 線形モデルと定数モデルの比較をベイズファクターで行います。 
 
-\[
+$$
 BF =
 \exp
 \left(
@@ -112,7 +113,7 @@ BF =
 -
 \log Z_{constant}
 \right)
-\]
+$$
 
 判定にはJeffreysの基準を採用しています。 】
 
