@@ -107,14 +107,10 @@ $$
 
 
 $$
-BF =
-\exp\left(
-\log Z_{linear}
--
-\log Z_{constant}
-\right)
+BF=\exp(\log Z_{linear}-\log Z_{constant})
 $$
-``
+
+
 判定にはJeffreysの基準を採用しています。 】
 
 | Bayes Factor | 解釈 |
