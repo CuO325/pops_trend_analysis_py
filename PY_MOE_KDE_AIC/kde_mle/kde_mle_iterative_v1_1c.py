@@ -1,9 +1,9 @@
 
 import pandas as pd
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import numpy as np
 import math
-import japanize_matplotlib
+#import japanize_matplotlib
 from sklearn.utils import resample
 from scipy.stats import gaussian_kde
 from scipy.optimize import minimize
@@ -12,13 +12,13 @@ import warnings
 from statsmodels.tools.sm_exceptions import PerfectSeparationWarning
 from sklearn.metrics import r2_score
 import os
-import emcee
-import time
+#import emcee
+#import time
 from scipy.signal import fftconvolve
-from scipy.interpolate import interp1d
+#from scipy.interpolate import interp1d
 from module.module_kde_mle_2a import run_mle_and_aic_simple, run_mle_and_aic_iterative
 
-from tqdm import tqdm  # tqdm がない場合は進捗表示を自作してください
+#from tqdm import tqdm  # tqdm がない場合は進捗表示を自作してください
 
 # =====================================================================
 # 修正・整理された目的関数群
@@ -262,10 +262,13 @@ def format_float(val, digits=4):
         return round(float(val), digits)
     except Exception:
         return np.nan
+
+    
 if __name__ == "__main__":
-    filenames = ["PFOS大気温暖期"]
-    #filenames = ["大気温暖期","大気寒冷期","底質","生物"]
+    #filenames = ["PFOS大気温暖期"]
+    filenames = ["大気温暖期","大気寒冷期","底質","生物"]
     #filenames = ["水質"]
+
     for filename in filenames:
         print(f"\n\n==================== ファイル処理開始: {filename} ====================")
         filepath = f"data/{filename}.csv"

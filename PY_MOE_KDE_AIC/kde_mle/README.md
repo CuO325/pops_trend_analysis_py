@@ -177,21 +177,6 @@ if len(df) < 24:
     continue
 ```
 
----
-
-## 🧩 依存ライブラリ
-
-- pandas  
-- numpy  
-- scipy  
-- statsmodels  
-- scikit-learn  
-- matplotlib  
-- emcee  
-- tqdm  
-
-pip install pandas numpy scipy statsmodels scikit-learn matplotlib emcee tqdm
----
 
 ## 📄 ライセンス
 
