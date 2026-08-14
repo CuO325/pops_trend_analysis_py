@@ -105,16 +105,16 @@ $$
 
 線形モデルと定数モデルの比較をベイズファクターで行います。 
 
+
 $$
 BF =
-\exp
-\left(
+\exp\left(
 \log Z_{linear}
 -
 \log Z_{constant}
 \right)
 $$
-
+``
 判定にはJeffreysの基準を採用しています。 】
 
 | Bayes Factor | 解釈 |
