@@ -192,6 +192,8 @@ if len(df) < 24:
 
 ```bash
 pip install pandas numpy scipy statsmodels scikit-learn
+```
+
 ---
 
 ## 📄 ライセンス
