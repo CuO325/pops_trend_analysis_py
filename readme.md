@@ -14,6 +14,34 @@
 ##### [  (1)環境省(2025): 経年分析の方法等に関する補足説明 ]https://www.env.go.jp/chemi/kurohon/2025/shosai/3_8.pdf 
 ---
 
+## Current Status
+
+本リポジトリには複数の実装が含まれています。
+
+### 推奨版（Current implementation）
+
+ST_ti_fft_kde_regression/
+
+- Streamlitベース
+- FFT-KDE高速尤度
+- Thermodynamic Integration (TI)
+- Bayes Factorによるモデル比較
+- ブラウザ上で動作
+- 最新機能を実装
+
+### 参照実装（Reference implementation）
+
+例：　PY_ti_fft_kde_regression/
+
+- emceeを用いたオリジナル実装
+- 再現性確保のため保存
+- 手法検証および比較用
+
+### その他のツール
+ `ST_BREAK_POINTs`/ `ST_SARIMA_prediction`
+- 季節変動を示す高頻度モニタリングの解析
+
+---
 ## ✨ 主な機能と特徴
 
 * 🧠 **階層ベイズモデル（MCMC）**: `emcee` や `NumPyro` を活用した柔軟で高速なベイズ推論

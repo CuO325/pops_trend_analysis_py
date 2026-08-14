@@ -122,6 +122,7 @@ $$
 | 30 ≤ BF < 100 | 非常に強い証拠 |
 | BF ≥ 100 | 決定的な証拠 |
 
+#### Thermodynamic Integration はオプション機能であり、Bayes Factor によるモデル比較が必要な場合のみ実行を推奨する。
 ---
 
 ### KDE最尤推定（KDE-MLE）
