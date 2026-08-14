@@ -17,7 +17,7 @@
 
 * 🧠 **階層ベイズモデル（MCMC）**: `emcee` や `NumPyro` を活用した柔軟で高速なベイズ推論
 * 📈 **環境省（MOE）手法の再現＆拡張**: カーネル密度推定（KDE）、AICによるモデル選択、ブートストラップ法、MCMCへの応用
-###        [経年分析の方法等に関する補足説明 環境省]https://www.env.go.jp/chemi/kurohon/2025/shosai/3_8.pdf 
+#####       [経年分析の方法等に関する補足説明 環境省]https://www.env.go.jp/chemi/kurohon/2025/shosai/3_8.pdf 
 * 🔄 **時系列・周波数解析**: FFTとKDEを組み合わせた高度な回帰分析（TI: Thermodynamic Integration）
 * 🎯 **変化点検出 & 予測**: 構造変化点（ブレイクポイント）の検出および SARIMA モデルによる将来予測
 * 🖥️ **直感的なWeb UI**: Streamlit を用いたインタラクティブな解析アプリを同梱
