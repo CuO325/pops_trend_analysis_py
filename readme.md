@@ -76,7 +76,7 @@ Bayes Factor / 階層ベイズ / SARIMA
 | ディレクトリ名 | 概要 | 主な手法・ライブラリ |
 | :--- | :--- | :--- |
 | **[PY_Hierarchical_emcee](./PY_emcee_kde_regression/)** | 階層ベイズモデルによるトレンド分析 （遅いです）| `emcee` |
-| **[💡PY_Hierarchical_numpyro](./PY_Hierarchical_numpyro/)** | 高速な階層ベイズモデリング （推奨版）| `NumPyro`, `JAX` |
+| 💡**[PY_Hierarchical_numpyro](./PY_Hierarchical_numpyro/)** | 高速な階層ベイズモデリング （推奨版）| `NumPyro`, `JAX` |
 | **[PY_MOE_KDE_AIC/kde_mle](./PY_MOE_KDE_AIC/kde_mle/)** | 環境省手法：KDE、AICモデル選択、最尤推定、ブートストラップ | KDE, AIC, MLE |
 | **[PY_emcee_kde_regression](./PY_emcee_kde_regression)** | `emcee` と KDE を組み合わせた回帰分析 （遅いです）| `emcee`, KDE |
 | **[PY_pops_moe_analysis_plus](./PY_pops_moe_analysis_plus/)** | 環境省手法をベイズ分析（MCMC）へ拡張した高度モデル | ベイズ統計, MCMC |
@@ -88,7 +88,7 @@ Bayes Factor / 階層ベイズ / SARIMA
 | :--- | :--- |
 | **[ST_BREAK_POINTs](./ST_BREAK_POINTs/)** | 高頻度測定の時系列データにおける構造変化点（ブレイクポイント）の検出アプリ |
 | **[ST_SARIMA_prediction](./ST_SARIMA_prediction/)** | 高頻度測定の時系列データのSARIMAモデルを用いた将来予測アプリ |
-| **[💡ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** | FFT・KDEを用いた時系列回帰分析アプリ、TI実装（推奨版） |
+| 💡**[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** | FFT・KDEを用いた時系列回帰分析アプリ、TI実装（推奨版） |
 
 ---
 
