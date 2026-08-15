@@ -28,13 +28,13 @@ Bayes Factor / 階層ベイズ / SARIMA
 ## Current Status
 🚀 初めて利用する方は
 
-👉  [PY_ti_fft_kde_regression](./PY_ti_fft_kde_regression/)
+👉 **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** 
 
 からお試しください。
 
 ### 推奨版（Current implementation）
 
- **[PY_ti_fft_kde_regression](./PY_ti_fft_kde_regression/)**
+**[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** 
 - 全体の傾向解析
 - FFT-KDE高速尤度
 - Thermodynamic Integration (TI)
