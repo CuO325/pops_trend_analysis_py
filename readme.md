@@ -1,8 +1,16 @@
 
-
 # 📊 pops_trend_analysis_py
 
-> **残留性有機汚染物質（POPs）等の環境モニタリングデータに向けた、高度な時系列・トレンド分析＆統計モデリング Toolkit**
+>環境モニタリングデータ向けの
+>時系列解析・ベイズモデリング・予測ツール集です。
+
+**推奨アプリ：**
+`ST_ti_fft_kde_regression`
+`PY_Hierarchical_numpyro`
+
+主な機能：
+FFT-KDE / MCMC / Thermodynamic Integration /
+Bayes Factor / 階層ベイズ / SARIMA
 
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
