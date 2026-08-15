@@ -27,9 +27,8 @@ Bayes Factor / 階層ベイズ / SARIMA
 ## Current Status
 🚀 初めて利用する方は
 
-👉 **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** 
+👉 **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** からお試しください。
 
-からお試しください。
 ---
 
 ### 推奨版（Current implementation）
