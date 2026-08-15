@@ -65,10 +65,10 @@
 
 | ディレクトリ名 | 概要 | 主な手法・ライブラリ |
 | :--- | :--- | :--- |
-| **`PY_Hierarchical_emcee`** | 階層ベイズモデルによるトレンド分析 | `emcee` |
-| **`PY_Hierarchical_numpyro`** | 高速な階層ベイズモデリング | `NumPyro`, `JAX` |
+| **`PY_Hierarchical_emcee`** | 階層ベイズモデルによるトレンド分析 （遅いです）| `emcee` |
+| **`PY_Hierarchical_numpyro`** | 高速な階層ベイズモデリング （推奨版）| `NumPyro`, `JAX` |
 | **`PY_MOE_KDE_AIC/kde_mle`** | 環境省手法：KDE、AICモデル選択、最尤推定、ブートストラップ | KDE, AIC, MLE |
-| **`PY_emcee_kde_regression`** | `emcee` と KDE を組み合わせた回帰分析 | `emcee`, KDE |
+| **`PY_emcee_kde_regression`** | `emcee` と KDE を組み合わせた回帰分析 （遅いです）| `emcee`, KDE |
 | **`PY_pops_moe_analysis_plus`** | 環境省手法をベイズ分析（MCMC）へ拡張した高度モデル | ベイズ統計, MCMC |
 | **`PY_ti_fft_kde_regression`** | 高速フーリエ変換（FFT）と KDE を組み合わせた時系列回帰分析 | FFT, KDE |
 
@@ -76,27 +76,11 @@
 
 | ディレクトリ名 | 概要 |
 | :--- | :--- |
-| **`ST_BREAK_POINTs`** | 時系列データにおける構造変化点（ブレイクポイント）の検出アプリ |
-| **`ST_SARIMA_prediction`** | SARIMAモデルを用いた時系列データの将来予測アプリ |
-| **`ST_ti_fft_kde_regression`** | FFT・KDEを用いた時系列回帰分析アプリ（TI実装） |
+| **`ST_BREAK_POINTs`** | 高頻度測定の時系列データにおける構造変化点（ブレイクポイント）の検出アプリ |
+| **`ST_SARIMA_prediction`** | 高頻度測定の時系列データのSARIMAモデルを用いた将来予測アプリ |
+| **`ST_ti_fft_kde_regression`** | FFT・KDEを用いた時系列回帰分析アプリ（TI実装、推奨版） |
 
 ---
-
-```text
-pops_trend_analysis_py/
-├── PY_emcee_kde_regression/     # 💡KDEベイズ回帰 (emcee版　遅いです)
-│   └── pops_trend_analysis_v1.1a.py  
-├── PY_Hierarchical_emcee/       # 階層ベイズモデル (emcee版)　地点別の傾向分析
-├── PY_Hierarchical_numpyro/     # 階層ベイズモデル (NumPyro版)　地点別の傾向分析
-├── PY_MOE_KDE_AIC/              # MOE / KDE-AIC 比較解析　（環境省の黒本記載の方法です）
-├── PY_pops_moe_analysis_plus/   # 💡KDEベイズ回帰 (NumPyro版　速いです)
-│ 
-├── ST_ti_fft_kde_regression/    # 💡FFTを用いたKDE高速化モデル　(ブラウザ上で動作。TIも選択できます。スクリプトが最新です。)
-├── ST_BREAK_POINTs/             # 変化点分析 (Breakpoint)　高頻度測定での季節変動を除外した経年変動を折れ線で解析します。
-├── ST_SARIMA_prediction/        # 時系列予測 (SARIMA) 高頻度測定の精度管理、警鐘のためのアプリです。
-└── README.md
-
-```
 
 ## 🛠 動作環境・依存ライブラリ
 
