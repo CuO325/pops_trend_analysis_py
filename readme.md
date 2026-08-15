@@ -22,11 +22,17 @@ Bayes Factor / 階層ベイズ / SARIMA
 [(1)環境省(2025): 経年分析の方法等に関する補足説明 ]https://www.env.go.jp/chemi/kurohon/2025/shosai/3_8.pdf 
 
 ---
+## 🚀 初めて利用する方へ
+
 
 ## Current Status
 🚀 初めて利用する方は
-
-`ST_ti_fft_kde_regression`
+👉 **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)
+- FFT-KDE高速尤度
+- TI（Thermodynamic Integration）
+- Bayes Factorモデル比較
+- ブラウザ上で動作
+- 最新版
 
 からお試しください。
 
