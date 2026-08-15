@@ -18,14 +18,13 @@
 ## Current Status
 🚀 初めて利用する方は
 
-ST_ti_fft_kde_regression
+`ST_ti_fft_kde_regression`
 
 からお試しください。
 
 ### 推奨版（Current implementation）
 
-ST_ti_fft_kde_regression/
-
+`ST_ti_fft_kde_regression`
 - Streamlitベース
 - FFT-KDE高速尤度
 - Thermodynamic Integration (TI)
@@ -33,9 +32,13 @@ ST_ti_fft_kde_regression/
 - ブラウザ上で動作
 - 最新機能を実装
 
+`PY_Hierarchical_numpyro`
+- 高速な階層ベイズ
+- 地点別の傾向分析
+
 ### 参照実装（Reference implementation）
 
-例：　PY_ti_fft_kde_regression/
+例：　`PY_ti_fft_kde_regression`/
 
 - emceeを用いたオリジナル実装
 - 再現性確保のため保存
