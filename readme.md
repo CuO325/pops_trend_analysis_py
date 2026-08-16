@@ -34,6 +34,7 @@ Bayes Factor / 階層ベイズ / SARIMA
 ### 推奨版（Current implementation）
 
 **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** 
+
 - 全体の傾向解析
 - FFT-KDE高速尤度
 - Thermodynamic Integration (TI)
@@ -42,16 +43,18 @@ Bayes Factor / 階層ベイズ / SARIMA
 - 最新機能を実装
 
 **[PY_Hierarchical_numpyro](./PY_Hierarchical_numpyro/)**
+
 - 地域別の傾向解析
 - 高速な階層ベイズ
 
 ### 参照実装（Reference implementation）
 
-例：　`PY_ti_fft_kde_regression`/
+`PY_ti_fft_kde_regression`など**推奨以外**のPY_スプリプトは、手法の検証やバッチ処理などの目的で保存されています。
 
 - emceeを用いたオリジナル実装
 - 再現性確保のため保存
 - 手法検証および比較用
+- 目的に応じたバッチ処理用
 
 ### その他のツール
  `ST_BREAK_POINTs`/ `ST_SARIMA_prediction`
@@ -63,7 +66,7 @@ Bayes Factor / 階層ベイズ / SARIMA
 * 🧠 **階層ベイズモデル（MCMC）**: `emcee` や `NumPyro` を活用した柔軟で高速なベイズ推論
 * 📈 **環境省（MOE）手法の再現＆拡張**: カーネル密度推定（KDE）、AICによるモデル選択、ブートストラップ法、MCMCへの応用
 * 🔄 **時系列・周波数解析**: FFTとKDEを組み合わせた高度な回帰分析（TI: Thermodynamic Integration）
-* 🎯 **変化点検出 & 予測**: 構造変化点（ブレイクポイント）の検出および SARIMA モデルによる将来予測
+* 🎯 **変化点検出 & 予測**: 構造変化点（ブレイクポイント）の検出および SARIMA モデルによるアラート機能
 * 🖥️ **直感的なWeb UI**: Streamlit を用いたインタラクティブな解析アプリを同梱
 
 ---
@@ -86,7 +89,7 @@ Bayes Factor / 階層ベイズ / SARIMA
 | ディレクトリ名 | 概要 |
 | :--- | :--- |
 | **[ST_BREAK_POINTs](./ST_BREAK_POINTs/)** | 高頻度測定の時系列データにおける構造変化点（ブレイクポイント）の検出アプリ |
-| **[ST_SARIMA_prediction](./ST_SARIMA_prediction/)** | 高頻度測定の時系列データのSARIMAモデルを用いた将来予測アプリ |
+| **[ST_SARIMA_prediction](./ST_SARIMA_prediction/)** | 高頻度測定の時系列データのSARIMAモデルを用いたアラート機能 |
 | **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** | FFT・KDEを用いた時系列回帰分析アプリ、TI実装（💡推奨版） |
 
 ---
@@ -166,3 +169,4 @@ streamlit run app.py  # ※実際のファイル名に合わせて変更して�
 * **NumPy / SciPy / Pandas / statsmodels**: BSD License
 
 
+Hiroaki Shiraishi （2026）
