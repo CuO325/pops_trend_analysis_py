@@ -1,5 +1,5 @@
 
-# 📊 pops_trend_analysis_py
+# 📊 PTAP (pops_trend_analysis_py)
 
 >環境モニタリングデータ向けの
 >時系列解析・ベイズモデリング・予測ツール集です。
@@ -156,7 +156,7 @@ streamlit run app.py  # ※実際のファイル名に合わせて変更して�
 
 ### 本プロジェクト
 
-本リポジトリのコードは [MIT License](https://www.google.com/search?q=LICENSE) のもとで公開されています。
+本リポジトリのコードは [MIT License](hhttps://ja.wikipedia.org/wiki/MITライセンス) のもとで公開されています。
 
 ### サードパーティ・ライブラリ
 
