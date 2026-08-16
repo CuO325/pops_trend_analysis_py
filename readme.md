@@ -34,7 +34,7 @@ Bayes Factor / 階層ベイズ / SARIMA
 ### 推奨版（Current implementation）
 
 **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** 
-
+> [PY_pops_moe_analysis_plus](./PY_pops_moe_analysis_plus/)　がほぼ、同機能です。バッチ処理はこちらが便利です。
 - 全体の傾向解析
 - FFT-KDE高速尤度
 - Thermodynamic Integration (TI)
@@ -78,10 +78,10 @@ Bayes Factor / 階層ベイズ / SARIMA
 | ディレクトリ名 | 概要 | 主な手法・ライブラリ |
 | :--- | :--- | :--- |
 | **[PY_Hierarchical_emcee](./PY_emcee_kde_regression/)** | 階層ベイズモデルによるトレンド分析 （遅いです）| `emcee` |
-| **[PY_Hierarchical_numpyro](./PY_Hierarchical_numpyro/)** | 高速な階層ベイズモデリング （💡推奨版）| `NumPyro`, `JAX` |
+| **[PY_Hierarchical_numpyro](./PY_Hierarchical_numpyro/)** | 高速な階層ベイズモデリング （💡階層ベイズの推奨版）| `NumPyro`, `JAX` |
 | **[PY_MOE_KDE_AIC/kde_mle](./PY_MOE_KDE_AIC/kde_mle/)** | 環境省手法：KDE、AICモデル選択、最尤推定、ブートストラップ | KDE, AIC, MLE |
 | **[PY_emcee_kde_regression](./PY_emcee_kde_regression)** | `emcee` と KDE を組み合わせた回帰分析 （遅いです）| `emcee`, KDE |
-| **[PY_pops_moe_analysis_plus](./PY_pops_moe_analysis_plus/)** | 環境省手法をベイズ分析（MCMC）へ拡張した高度モデル | ベイズ統計, MCMC |
+| **[PY_pops_moe_analysis_plus](./PY_pops_moe_analysis_plus/)** | 環境省手法をベイズ分析（MCMC）へ拡張した高度モデル　（💡準-推奨版） | ベイズ統計, MCMC |
 | **[PY_ti_fft_kde_regression](./PY_ti_fft_kde_regression/)** | 高速フーリエ変換（FFT）と KDE を組み合わせた時系列回帰分析 | FFT, KDE |
 
 ### 🎈 Streamlit アプリケーション (`ST_`)
