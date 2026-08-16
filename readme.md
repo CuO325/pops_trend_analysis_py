@@ -156,7 +156,7 @@ streamlit run app.py  # ※実際のファイル名に合わせて変更して�
 
 ### 本プロジェクト
 
-本リポジトリのコードは [MIT License](hhttps://ja.wikipedia.org/wiki/MITライセンス) のもとで公開されています。
+本リポジトリのコードは [MIT License](https://ja.wikipedia.org/wiki/MITライセンス) のもとで公開されています。
 
 ### サードパーティ・ライブラリ
 
