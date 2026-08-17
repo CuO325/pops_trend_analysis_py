@@ -1251,6 +1251,7 @@ if __name__ == "__main__":
                 # ---- OLS ----
                 ols = analysis_report['methods']['OLS']
                 f.write("<h3>最小二乗法（OLS）非推奨</h3>")
+                #f.write(f"<pre><b>summary:</b> {r['f.write(f"<pre><b>summary:</b> {r['model_summary_ols']}<br></pre>")']}<br></pre>")
                 f.write(f"<b>傾き a:</b> {ols['slope']:.6f}<br>")
                 f.write(f"<b>切片 b:</b> {ols['intercept']:.6f}<br>")
                 f.write(f"<b>標準誤差 a:</b> {ols['stderr_a']:.6f}<br>")
