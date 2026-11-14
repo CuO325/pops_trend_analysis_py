@@ -23,17 +23,19 @@ Bayes Factor / 階層ベイズ / SARIMA
 
 ---
 ## 🚀 初めて利用する方へ
+**環境省のPOPsモニタリングの解析法をお探しの場合は、
+👉 **[PY_MOE_KDE_AIC/kde_mle](./PY_MOE_KDE_AIC/kde_mle/)** をお試しください。
 
-## Current Status
-🚀 初めて利用する方は
+**GUIやHTML出力をご希望の場合は、ファイル名がST_で始まるアプリをお試しください。
+👉 **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)**　が推奨です。
 
-👉 **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** からお試しください。
 
 ---
+## Current Status
 
 ### 推奨版（Current implementation）
-
 **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** 
+
 > [PY_pops_moe_analysis_plus](./PY_pops_moe_analysis_plus/)　がほぼ、同機能です。バッチ処理はこちらが便利です。
 - 全体の傾向解析
 - FFT-KDE高速尤度
