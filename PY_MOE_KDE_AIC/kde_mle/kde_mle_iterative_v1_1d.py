@@ -19,6 +19,172 @@ from scipy.signal import fftconvolve
 from module.module_kde_mle_2a import run_mle_and_aic_simple, run_mle_and_aic_iterative
 
 #from tqdm import tqdm  # tqdm がない場合は進捗表示を自作してください
+import numpy as np
+from scipy.stats import gaussian_kde
+from scipy.optimize import minimize
+
+
+# =====================================================================
+# 環境省（図5）準拠：年度ごとの残差KDEを合成するモデル
+# =====================================================================
+
+def build_yearly_kdes_old(residuals, x_years):
+    """
+    年度ごとに残差のKDEオブジェクトを作成してリストで返す。
+    ※サンプル数が極端に少ない年度（2点未満など）は除外またはフォールバックする。
+    """
+    unique_years = np.unique(x_years)
+    yearly_kdes = []
+    for yr in unique_years:
+        yr_res = residuals[x_years == yr]
+        if len(yr_res) >= 2 and np.std(yr_res) > 1e-8:
+            try:
+                yearly_kdes.append(gaussian_kde(yr_res))
+            except np.linalg.LinAlgError:
+                continue
+    return yearly_kdes
+
+def build_yearly_kdes(residuals, x_years, min_bw=0.15):
+    """
+    年度ごとに残差のKDEオブジェクトを作成してリストで返す。
+    ※ND値集中によるスパイク化を防ぐため、全体バンド幅または最小バンド幅を適用する。
+    """
+    unique_years = np.unique(x_years)
+    yearly_kdes = []
+    
+    # 全体残差から基準となるバンド幅（標準偏差×factor）を算出
+    overall_std = np.std(residuals)
+    if overall_std < 1e-8:
+        return []
+    base_kde = gaussian_kde(residuals)
+    # 全体のバンド幅（データスケール上の幅）
+    target_bw_abs = max(base_kde.factor * overall_std, min_bw)
+
+    for yr in unique_years:
+        yr_res = residuals[x_years == yr]
+        if len(yr_res) >= 2:
+            yr_std = np.std(yr_res)
+            # 年度内のばらつきが極端に小さい（NDばかり）場合は、全体の幅に合わせる
+            if yr_std < 1e-4:
+                # 擬似的に微小ノイズを加えるか、固定幅ガウスカーネルとして扱う
+                yr_res_jitter = yr_res + np.linspace(-1e-4, 1e-4, len(yr_res))
+                bw_factor = target_bw_abs / np.std(yr_res_jitter)
+                yearly_kdes.append(gaussian_kde(yr_res_jitter, bw_method=bw_factor))
+            else:
+                bw_factor = target_bw_abs / yr_std
+                yearly_kdes.append(gaussian_kde(yr_res, bw_method=bw_factor))
+                
+    return yearly_kdes
+
+def eval_pooled_yearly_pdf(residuals, yearly_kdes):
+    """
+    各年度のKDEから確率密度を算出し、等重みで合成（平均化）したPDFを返す（図5の「足し合わせた共通分布」）。
+    """
+    if not yearly_kdes:
+        return np.full_like(residuals, 1e-10, dtype=float)
+    
+    total_pdf = np.zeros_like(residuals, dtype=float)
+    for kde in yearly_kdes:
+        total_pdf += kde.pdf(residuals)
+    
+    return total_pdf / len(yearly_kdes)
+
+def neg_log_likelihood_yearly_fixed_kde(params, x, y, yearly_kdes_fixed):
+    """
+    【線形モデル用・環境省図5準拠】
+    渡された『年度別KDEリスト (yearly_kdes_fixed)』の合成分布を用いて負の対数尤度を計算する。
+    """
+    a, b = params
+    residuals = y - (a * x + b)
+    try:
+        pdf_values = eval_pooled_yearly_pdf(residuals, yearly_kdes_fixed)
+        log_likelihood = np.sum(np.log(pdf_values + 1e-10))
+        return -log_likelihood
+    except Exception:
+        return 1e10
+
+def neg_log_likelihood_yearly_0(params, x, y):
+    """
+    【定数モデル用（傾き a=0）・環境省図5準拠】
+    """
+    b0 = params[0]
+    residuals = y - b0
+    try:
+        yearly_kdes = build_yearly_kdes(residuals, x)
+        pdf_values = eval_pooled_yearly_pdf(residuals, yearly_kdes)
+        log_likelihood = np.sum(np.log(pdf_values + 1e-10))
+        return -log_likelihood
+    except Exception:
+        return 1e10
+
+def run_mle_and_aic_yearly_pooled(df, max_iter=50, tolerance=1e-3):
+    """
+    環境省（図5）準拠：年度別残差分布の合成による反復最尤推定とAIC判定
+    """
+    x_raw = df['year'].values
+    x_base = x_raw.min()
+    x_centered = x_raw - x_base
+    y = df['log_conc'].values
+
+    # 初期値（OLS）
+    a_current, b_current = np.polyfit(x_centered, y, 1)
+
+    prev_a, prev_b = a_current, b_current
+    converged_status = "未収束"
+    final_iter = max_iter
+
+    for i in range(max_iter):
+        # --- 年度別 KDE リストを更新 ---
+        residuals = y - (a_current * x_centered + b_current)
+        yearly_kdes_new = build_yearly_kdes(residuals, x_centered)
+
+        # --- 固定された年度別KDEを使った NLL ---
+        def nll_fixed(params, x, y):
+            return neg_log_likelihood_yearly_fixed_kde(params, x, y, yearly_kdes_new)
+
+        # --- 最適化 ---
+        result = minimize(
+            nll_fixed,
+            [a_current, b_current],
+            args=(x_centered, y),
+            method='L-BFGS-B'
+        )
+        a_new, b_new = result.x
+        max_log_likelihood_1 = -result.fun
+
+        # --- 収束判定 ---
+        param_change = np.linalg.norm([a_new - prev_a, b_new - prev_b])
+        if param_change < tolerance:
+            converged_status = "収束"
+            final_iter = i + 1
+            a1, b1 = a_new, b_new
+            break
+
+        prev_a, prev_b = a_current, b_current
+        a_current, b_current = a_new, b_new
+    else:
+        a1, b1 = a_current, b_current
+        converged_status = "最大回数到達"
+        final_iter = max_iter
+
+    # --- 定数モデル（0次式） ---
+    result_0 = minimize(
+        neg_log_likelihood_yearly_0,
+        [np.mean(y)],
+        args=(x_centered, y),
+        method='L-BFGS-B'
+    )
+    max_log_likelihood_0 = -result_0.fun
+
+    # --- AIC と事後確率 p1 ---
+    aic1 = -2 * max_log_likelihood_1 + 2 * 2
+    aic0 = -2 * max_log_likelihood_0 + 2 * 1
+    delta_aic = aic1 - aic0
+    numerator = np.exp(-0.5 * delta_aic)
+    denominator = 1 + numerator
+    p1 = numerator / denominator
+
+    return a1, b1, aic0, aic1, p1, x_base, converged_status, final_iter
 
 # =====================================================================
 # 修正・整理された目的関数群
@@ -266,8 +432,8 @@ def format_float(val, digits=4):
     
 if __name__ == "__main__":
     #filenames = ["PFOS大気温暖期"]
-    filenames = ["大気温暖期","大気寒冷期","底質","生物"]
-    #filenames = ["水質"]
+    #filenames = ["大気温暖期","大気寒冷期","底質","生物"]
+    filenames = ["大気温暖期"]
 
     for filename in filenames:
         print(f"\n\n==================== ファイル処理開始: {filename} ====================")
@@ -369,6 +535,17 @@ if __name__ == "__main__":
                 mle_status = "エラー"
                 mle_iters = np.nan
                 continue
+
+            # ①-B 環境省図5準拠（年度別残差合成KDE）
+            print("\n=== Running KDE-MLE (MOE Fig.5 Yearly Pooled) ===")
+            try:
+                a_moe, b_moe, aic0_moe, aic1_moe, p1_moe, _, status_moe, iters_moe = run_mle_and_aic_yearly_pooled(df)
+                trend_moe = "p1 >= 0.95 傾向あり" if p1_moe >= 0.95 else "p1 < 0.95 傾向なし"
+                print(f"状態: {status_moe} (反復回数: {iters_moe})")
+                print(f"傾き a = {a_moe:.4f}, 切片 b = {b_moe:.4f}, AIC事後確率 p1 = {p1_moe:.4f} → {trend_moe}")
+            except Exception as e:
+                print(f"年度別合成KDEエラー: {e}")
+                a_moe, b_moe, p1_moe, trend_moe = np.nan, np.nan, np.nan, "エラー"
 
             
             # ③ ブートストラップ
