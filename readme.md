@@ -164,7 +164,7 @@ streamlit run app.py  # ※実際のファイル名に合わせて変更して�
 本リポジトリに含まれるソースコードは [MIT License](https://ja.wikipedia.org/wiki/MIT%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9) のもとで公開されています。
 
 ### サンプルデータ（DEMO_DATA 等）
-本リポジトリに同梱しているサンプルデータは、環境省が公開している[化学物質と環境](https://www.env.go.jp/chemi/kurohon/)にあるモニタリング・観測データを加工して作成したものです。
+本リポジトリに同梱しているサンプルデータは、環境省が公開している[化学物質と環境](https://www.env.go.jp/chemi/kurohon/)　[環境省 化学物質と環境 データ検索](https://www.kuro-hon.env.go.jp/search/ja)にあるモニタリング・観測データを加工して作成したものです。
 - **MIT License はサンプルデータには適用されません。**
 - サンプルデータの利用条件・二次利用（出典の記載等）については、[環境省ホームページの著作権・リンクについて](https://www.env.go.jp/mail.html) に従ってください。
 
