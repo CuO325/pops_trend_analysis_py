@@ -113,9 +113,10 @@ simple 版は **iterative の初期値としても使用**します。
 ### 3. **KDE‑MLE（iterative）**
 
 - simple 版の (a, b) を初期値に使用  
-- 残差 KDE を毎回更新しながら MLE を反復  
+- 残差 KDE を毎回更新しながら MLE を反復  ｜残渣を全データから作成する
 - tolerance は自動推定  
 - simple 版と結果が一致するかを確認
+- KDE‑MLE（iterative, MOE Fig.5 Yearly Pooled）｜環境省・図5準拠（年度別残差合成KDE）による分析　(add 20261115)
 
 ---
 
