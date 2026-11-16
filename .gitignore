@@ -37,7 +37,8 @@ env/
 *.xlsx
 *.png
 *.ipynb
-
+!examples/*.ipynb
+!tutorials/*.ipynb
 !**/examples/
 !**/examples/**
 

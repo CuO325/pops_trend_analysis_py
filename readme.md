@@ -1,5 +1,5 @@
 
-# 📊 PTAP (pops_trend_analysis_py)
+# 📊 POPsTAP (pops_trend_analysis_py)
 
 >環境モニタリングデータ向けの
 >時系列解析・ベイズモデリング・予測ツール集です。
