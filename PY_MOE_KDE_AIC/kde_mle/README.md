@@ -159,11 +159,19 @@ ND 補正後のデータ。
 
 ## ▶ 実行方法
 
-```
-python スクリプト名.py
+```bash
+# 既定（data/大気温暖期.csv を解析）
+python kde_mle_iterative_v1_1d.py
+
+# ファイル名を指定（data/<名前>.csv を順次解析）
+python kde_mle_iterative_v1_1d.py 水質 底質 生物
+
+# 入出力ディレクトリを指定
+python kde_mle_iterative_v1_1d.py 水質 --data-dir data --output-dir outputs
 ```
 
-`filenames` に指定した CSV が順次解析されます。
+引数を省略した場合は `data/大気温暖期.csv` が解析されます。
+入力 CSV は `data/<ファイル名>.csv`、出力は `outputs/` に保存されます。
 
 ---
 
