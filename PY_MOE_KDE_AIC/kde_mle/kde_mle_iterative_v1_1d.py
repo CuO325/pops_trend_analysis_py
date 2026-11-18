@@ -762,8 +762,114 @@ def load_and_preprocess(filepath: str, output_dir: str) -> tuple[pd.DataFrame, s
 
     return df_all, output_path
 
+def analyze_substance(df: pd.DataFrame, substance: str, filename: str) -> Optional[dict]:
+    """1 物質について 5 つの解析を実行し、結果レコードを返す."""
+    print(f"\n==================== {filename} : {substance} ====================")
+    
+    # ND のみのケース等は除外
+    if np.std(df["log_conc"]) < MIN_LOG_CONC_STD:
+        return None
+    
+    df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
+    df = df.dropna(subset=["year"])
+    
+    if len(df) < MIN_SAMPLES:
+        print("データ不足のためスキップ（地点数 < 24）")
+        return None
 
-def analyze_substance(
+    # --- ① KDE-MLE（simple） ---
+    print("\n=== Running KDE-MLE (simple) ===")
+    a1, b1, aic0_1, aic1_1, p1_s, x_base = run_mle_and_aic_simple(df)
+    trend_s = f"p1 >= {P1_THRESHOLD} 傾向あり" if p1_s >= P1_THRESHOLD else f"p1 < {P1_THRESHOLD} 傾向なし"
+    print(f"Slope (a): {a1:.4f}, Intercept (b): {b1:.4f}, p1: {p1_s:.4f} → {trend_s}")
+
+    # --- ② KDE-MLE（iterative） ---
+    print("\n=== Running KDE-MLE (iterative) ===")
+    try:
+        a, b, aic0, aic1, p1, x_base, mle_status, mle_iters, tolerance = (
+            run_mle_and_aic_iterative(df, a1, b1, MAIN_ITERATIVE_MAX_ITER)
+        )
+        trend = f"p1 >= {P1_THRESHOLD} 傾向あり" if p1 >= P1_THRESHOLD else f"p1 < {P1_THRESHOLD} 傾向なし"
+        print(f"状態: {mle_status} (反復回数: {mle_iters})")
+        print(f"傾き a = {a:.4f}, 切片 b = {b:.4f}, p1 = {p1:.4f} → {trend}")
+    except Exception as e:
+        print(f"最尤推定エラー: {e}")
+        return None
+
+    # --- ③ 環境省 図 5 準拠（年度別残差合成 KDE） ---
+    print("\n=== Running KDE-MLE (MOE Fig.5 Yearly Pooled) ===")
+    a_moe, b_moe, p1_moe = np.nan, np.nan, np.nan
+    trend_moe, status_moe, iters_moe = "エラー", "エラー", np.nan
+    try:
+        a_moe, b_moe, _, _, p1_moe, _, status_moe, iters_moe = (
+            run_mle_and_aic_yearly_pooled(df)
+        )
+        trend_moe = f"p1 >= {P1_THRESHOLD} 傾向あり" if p1_moe >= P1_THRESHOLD else f"p1 < {P1_THRESHOLD} 傾向なし"
+        print(f"状態: {status_moe} (反復回数: {iters_moe})")
+        print(f"傾き a = {a_moe:.4f}, 切片 b = {b_moe:.4f}, p1 = {p1_moe:.4f} → {trend_moe}")
+    except Exception as e:
+        print(f"年度別合成KDEエラー: {e}")
+
+    # --- ④ ブートストラップ検定 ---
+    ci_bs = np.array([np.nan, np.nan])
+    bs_trend = "エラー"
+    try:
+        split_year = determine_split_year(df)
+        if split_year is not None:
+            ci_bs = compare_periods(df, split_year=split_year)
+            if ci_bs[0] > 0 and not np.isnan(ci_bs[0]):
+                bs_trend = "後期は有意に低濃度"
+            elif ci_bs[1] < 0 and not np.isnan(ci_bs[1]):
+                bs_trend = "後期は有意に高濃度"
+            else:
+                bs_trend = "有意差なし"
+    except Exception as e:
+        print(f"ブートストラップエラー: {e}")
+
+    # --- ⑤ 二項ロジスティック回帰 ---
+    a_bin, p1_bin = np.nan, np.nan
+    trend_bin = "エラー"
+    try:
+        df_binomial = df[["year", "concentration", "detection_limit"]].copy()
+        aic0_bin, aic1_bin, p1_bin, a_bin = binomial_trend_analyze(df_binomial)
+        trend_bin = "傾向あり" if p1_bin >= P1_THRESHOLD else "傾向なし"
+    except Exception as e:
+        print(f"二項回帰エラー: {e}")
+
+    # すべての結果を辞書にまとめて返却
+    return {
+        "substance": substance,
+        "year": df["year"].unique().tolist(),
+        # 1. KDE-MLE (simple)
+        "slope_simple": a1,
+        "intercept_simple": b1,
+        "p1_simple": p1_s,
+        "trend_simple": trend_s,
+        # 2. KDE-MLE (iterative)
+        "slope_iterative": a,
+        "intercept_iterative": b,
+        "p1_iterative": p1,
+        "trend_iterative": trend,
+        "mle_status": mle_status,
+        "mle_iters": mle_iters,
+        "tolerance": tolerance,
+        # 3. KDE-MLE (MOE Fig.5 Yearly Pooled)
+        "slope_moe_yearly": a_moe,
+        "intercept_moe_yearly": b_moe,
+        "p1_moe_yearly": p1_moe,
+        "trend_moe_yearly": trend_moe,
+        "moe_yearly_status": status_moe,
+        "moe_yearly_iters": iters_moe,
+        # 4. Bootstrap
+        "bootstrap_CI": ci_bs,
+        "bs_trend": bs_trend,
+        # 5. Binomial Logistic
+        "binomial_slope": a_bin,
+        "binomial_p1": p1_bin,
+        "binomial_trend": trend_bin,
+    }
+
+def analyze_substance_old(
     df: pd.DataFrame, substance: str, filename: str
 ) -> Optional[dict]:
     """1 物質について 5 つの解析を実行し、結果レコードを返す.
@@ -914,8 +1020,33 @@ def analyze_substance(
         "binomial_trend": trend_bin,
     }
 
-
 def format_results(results: list[dict]) -> pd.DataFrame:
+    """結果レコード群を CSV 出力用に整形して DataFrame にする."""
+    for r in results:
+        # 信用区間の整形
+        r["bootstrap_CI"] = format_ci(r.get("bootstrap_CI"))
+        
+        # すべての数値項目を安全に丸める
+        for key in (
+            "slope_simple",
+            "intercept_simple",
+            "p1_simple",
+            "slope_iterative",
+            "intercept_iterative",
+            "p1_iterative",
+            "slope_moe_yearly",
+            "intercept_moe_yearly",
+            "p1_moe_yearly",
+            "binomial_slope",
+            "p1_binomial", # または p1_bin
+            "binomial_p1",
+        ):
+            if key in r:
+                r[key] = format_float(r.get(key))
+                
+    return pd.DataFrame(results)
+
+def format_results_old(results: list[dict]) -> pd.DataFrame:
     """結果レコード群を CSV 出力用に整形して DataFrame にする."""
     for r in results:
         # 信用区間の整形（すべて format_ci に統一）
