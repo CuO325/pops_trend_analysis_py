@@ -13,11 +13,11 @@
 実行方法::
 
     cd PY_MOE_KDE_AIC/kde_mle
-    python kde_mle_iterative_v1_1d.py            # data/大気温暖期.csv を解析
-    python kde_mle_iterative_v1_1d.py 水質 底質   # 複数ファイルをまとめて解析
+    python kde_mle_iterative_v1_1e.py            # data/大気温暖期.csv を解析
+    python kde_mle_iterative_v1_1e.py 水質 底質   # 複数ファイルをまとめて解析
 
-本モジュールはリファクタリング版であり、公開関数のシグネチャと数値結果は
-従来版と同一に保っている。
+kde_mle_iterative_v1_1d.pyに信頼区間、AICの補正が追加されるが、そのために時間がかかる。  
+
 """
 
 from __future__ import annotations
@@ -1180,7 +1180,9 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         default="outputs",
         help="出力 CSV のディレクトリ（既定: outputs）",
     )
-    return parser.parse_args(argv)
+    args, unknown = parser.parse_known_args(argv)
+
+    return args    #return parser.parse_args(argv)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
