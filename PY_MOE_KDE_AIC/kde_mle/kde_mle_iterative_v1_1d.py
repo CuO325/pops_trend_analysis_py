@@ -60,8 +60,9 @@ LOG_FLOOR = 1e-10
 BAD_FIT_PENALTY = 1e10
 """最適化が破綻した際に返すペナルティ値（実質 -inf 相当）。"""
 
-ND_SUBSTITUTE_DIVISOR = np.sqrt(2.0)
-"""ND 値の代替値 = 検出下限値 / sqrt(2)（環境省法）。"""
+#ND_SUBSTITUTE_DIVISOR = np.sqrt(2.0)
+ND_SUBSTITUTE_DIVISOR = 2.0
+"""ND 値の代替値 = 検出下限値 / 2（環境省法）。"""
 
 MIN_LOG_CONC_STD = 1e-6
 """log 濃度の標準偏差がこれ未満の物質は解析対象外（全 ND 等）。"""
@@ -103,7 +104,7 @@ BOOTSTRAP_ALPHA_PERCENTILES = (2.5, 97.5)
 """ブートストラップ 95% 信頼区間のパーセンタイル。"""
 
 # --- 入出力 ---
-DEFAULT_FILENAMES: tuple[str, ...] = ("大気温暖期",)
+DEFAULT_FILENAMES: tuple[str, ...] = ("PFOS大気温暖期",)
 """引数未指定時に解析するファイル（拡張子なし）の既定値。"""
 
 INPUT_COLUMNS: tuple[str, ...] = (
@@ -180,6 +181,7 @@ def compute_aic_posterior(
     log_likelihood_constant: float,
     n_params_linear: int = 2,
     n_params_constant: int = 1,
+    n_samples: Optional[int] = None,
 ) -> tuple[float, float, float]:
     """AIC と AIC 事後確率 p1 を計算する.
 
@@ -586,6 +588,7 @@ def run_mle_and_aic_yearly_pooled(
     x_base = x_raw.min()
     x_centered = x_raw - x_base
     y = df["log_conc"].values
+    n_samples = len(y)
 
     # 初期値（OLS）
     a_current, b_current = np.polyfit(x_centered, y, 1)
@@ -763,6 +766,13 @@ def load_and_preprocess(filepath: str, output_dir: str) -> tuple[pd.DataFrame, s
     return df_all, output_path
 
 def analyze_substance(df: pd.DataFrame, substance: str, filename: str) -> Optional[dict]:
+    # --- 補助指標の算出 ---
+    n_samples = int(len(df))
+    n_years = int(df["year"].nunique())
+    is_nd = df["concentration"] <= df["detection_limit"]
+    nd_ratio = float(is_nd.mean()) if n_samples > 0 else np.nan
+    dl_min = float(df["detection_limit"].min()) if n_samples > 0 else np.nan
+    dl_max = float(df["detection_limit"].max()) if n_samples > 0 else np.nan
     """1 物質について 5 つの解析を実行し、結果レコードを返す."""
     print(f"\n==================== {filename} : {substance} ====================")
     
@@ -779,16 +789,42 @@ def analyze_substance(df: pd.DataFrame, substance: str, filename: str) -> Option
 
     # --- ① KDE-MLE（simple） ---
     print("\n=== Running KDE-MLE (simple) ===")
-    a1, b1, aic0_1, aic1_1, p1_s, x_base = run_mle_and_aic_simple(df)
+    (
+    a1,
+    b1,
+    ci_a_s,
+    ci_b_s,
+    aic0_1,
+    aic1_1,
+    p1_s,
+    aicc0_1,
+    aicc1_1,
+    p1_c_s,
+    x_base,
+    ) = run_mle_and_aic_simple(df)
     trend_s = f"p1 >= {P1_THRESHOLD} 傾向あり" if p1_s >= P1_THRESHOLD else f"p1 < {P1_THRESHOLD} 傾向なし"
     print(f"Slope (a): {a1:.4f}, Intercept (b): {b1:.4f}, p1: {p1_s:.4f} → {trend_s}")
 
     # --- ② KDE-MLE（iterative） ---
     print("\n=== Running KDE-MLE (iterative) ===")
     try:
-        a, b, aic0, aic1, p1, x_base, mle_status, mle_iters, tolerance = (
-            run_mle_and_aic_iterative(df, a1, b1, MAIN_ITERATIVE_MAX_ITER)
-        )
+        (
+            a,
+            b,
+            ci_a_i,
+            ci_b_i,
+            aic0,
+            aic1,
+            p1,
+            aicc0,
+            aicc1,
+            p1_c,
+            x_base,
+            mle_status,
+            mle_iters,
+            tolerance,
+        ) = run_mle_and_aic_iterative(df, a1, b1, MAIN_ITERATIVE_MAX_ITER)
+        
         trend = f"p1 >= {P1_THRESHOLD} 傾向あり" if p1 >= P1_THRESHOLD else f"p1 < {P1_THRESHOLD} 傾向なし"
         print(f"状態: {mle_status} (反復回数: {mle_iters})")
         print(f"傾き a = {a:.4f}, 切片 b = {b:.4f}, p1 = {p1:.4f} → {trend}")
@@ -840,6 +876,12 @@ def analyze_substance(df: pd.DataFrame, substance: str, filename: str) -> Option
     return {
         "substance": substance,
         "year": df["year"].unique().tolist(),
+        "n_samples": n_samples,
+        "n_years": n_years,
+        "nd_ratio": nd_ratio,
+        "dl_min": dl_min,
+        "dl_max": dl_max,
+
         # 1. KDE-MLE (simple)
         "slope_simple": a1,
         "intercept_simple": b1,
@@ -869,156 +911,6 @@ def analyze_substance(df: pd.DataFrame, substance: str, filename: str) -> Option
         "binomial_trend": trend_bin,
     }
 
-def analyze_substance_old(
-    df: pd.DataFrame, substance: str, filename: str
-) -> Optional[dict]:
-    """1 物質について 5 つの解析を実行し、結果レコードを返す.
-
-    Parameters
-    ----------
-    df : DataFrame
-        当該物質のみに絞り込んだデータ（コピー済みであること）。
-    substance : str
-        物質名。
-    filename : str
-        ログ表示用のファイル名。
-
-    Returns
-    -------
-    dict or None
-        結果レコード。解析不能（データ不足・エラー）の場合は ``None``。
-    """
-    print(f"\n==================== {filename} : {substance} ====================")
-
-    # ND のみのケースを念頭に置く。除外する
-    if np.std(df["log_conc"]) < MIN_LOG_CONC_STD:
-        return None
-
-    df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
-    df = df.dropna(subset=["year"])
-    if len(df) < MIN_SAMPLES:
-        print("データ不足のためスキップ（地点数 < 24）")
-        return None
-
-    # --- ① KDE-MLE（simple）: iterative の初期値も兼ねる ---
-    print("\n=== Running KDE-MLE (simple) ===")
-    a1, b1, aic0_1, aic1_1, p1_s, x_base = run_mle_and_aic_simple(df)
-
-    print(f"Slope (a): {a1:.4f}")
-    print(f"Intercept (b): {b1:.4f}")
-    print(f"AIC0 (constant): {aic0_1:.3f}")
-    print(f"AIC1 (linear):   {aic1_1:.3f}")
-    print(f"AIC posterior weight p1: {p1_s:.4f}")
-    trend_s = (
-        f"p1 >= {P1_THRESHOLD} 傾向あり"
-        if p1_s >= P1_THRESHOLD
-        else f"p1 < {P1_THRESHOLD} 傾向なし"
-    )
-    print(f"→ {trend_s}")
-
-    # --- ② KDE-MLE（iterative） ---
-    print("\n=== Running KDE-MLE (iterative) ===")
-    try:
-        a, b, aic0, aic1, p1, x_base, mle_status, mle_iters, tolerance = (
-            run_mle_and_aic_iterative(df, a1, b1, MAIN_ITERATIVE_MAX_ITER)
-        )
-
-        print("--- 1. 対数線形回帰モデル (MLE) ---")
-        print(f"状態: {mle_status} tolerance: {tolerance:.04f} (反復回数: {mle_iters})")
-        print(f"傾き a = {a:.4f}, 切片 b = {b:.4f}, AIC事後確率 p1 = {p1:.4f}")
-        print(f"aic1: {aic1} - aic0: {aic0}")
-
-        trend = (
-            f"p1 >= {P1_THRESHOLD} 傾向あり"
-            if p1 >= P1_THRESHOLD
-            else f"p1 < {P1_THRESHOLD} 傾向なし"
-        )
-        print(f"→ {trend}")
-
-        print("OK　判定は一致しています" if trend == trend_s else "NO! 判定が不一致です!")
-        if trend != trend_s:
-            trend += f"　simple版とは異なる結果です ({p1_s:.4f})"
-        else:
-            trend += f"　simple版と同じ結果です ({p1_s:.4f})"
-    except Exception as e:
-        print(f"最尤推定エラー: {e}")
-        return None
-
-    # --- ③ 環境省 図 5 準拠（年度別残差合成 KDE） ---
-    print("\n=== Running KDE-MLE (MOE Fig.5 Yearly Pooled) ===")
-    try:
-        a_moe, b_moe, _, _, p1_moe, _, status_moe, iters_moe = (
-            run_mle_and_aic_yearly_pooled(df)
-        )
-        trend_moe = (
-            f"p1 >= {P1_THRESHOLD} 傾向あり"
-            if p1_moe >= P1_THRESHOLD
-            else f"p1 < {P1_THRESHOLD} 傾向なし"
-        )
-        print(f"状態: {status_moe} (反復回数: {iters_moe})")
-        print(
-            f"傾き a = {a_moe:.4f}, 切片 b = {b_moe:.4f}, "
-            f"AIC事後確率 p1 = {p1_moe:.4f} → {trend_moe}"
-        )
-    except Exception as e:
-        print(f"年度別合成KDEエラー: {e}")
-
-    # --- ④ ブートストラップ検定 ---
-    ci_bs = np.array([np.nan, np.nan])
-    try:
-        split_year = determine_split_year(df)
-        if split_year is None:
-            bs_trend = "有意差なし"
-        else:
-            ci_bs = compare_periods(df, split_year=split_year)
-            print("\n--- 3. ブートストラップ検定 ---")
-            print(f"分割年: {split_year}")
-            print(f"平均値差の95%信頼区間: {ci_bs}")
-            if ci_bs[0] > 0 and not np.isnan(ci_bs[0]):
-                bs_trend = "後期は有意に低濃度"
-            elif ci_bs[1] < 0 and not np.isnan(ci_bs[1]):
-                bs_trend = "後期は有意に高濃度"
-            else:
-                bs_trend = "有意差なし"
-            print(f"→ {bs_trend}")
-    except Exception as e:
-        print(f"ブートストラップエラー: {e}")
-        bs_trend = "エラー"
-        ci_bs = np.array([np.nan, np.nan])
-
-    # --- ⑤ 二項ロジスティック回帰 ---
-    a_bin, p1_bin = np.nan, np.nan
-    try:
-        print("\n--- 4. 二項ロジスティック回帰モデル ---")
-        df_binomial = df[["year", "concentration", "detection_limit"]].copy()
-        aic0_bin, aic1_bin, p1_bin, a_bin = binomial_trend_analyze(df_binomial)
-        print(
-            f"傾き a = {a_bin:.4f}, オッズ比 ≈ {math.exp(a_bin):.4f}, "
-            f"AIC事後確率 p1 = {p1_bin:.3f}"
-        )
-        trend_bin = "傾向あり" if p1_bin >= P1_THRESHOLD else "傾向なし"
-        print(f"→ {trend_bin}")
-    except Exception as e:
-        print(f"二項回帰エラー: {e}")
-        trend_bin = "エラー"
-        a_bin, p1_bin = np.nan, np.nan
-
-    return {
-        "substance": substance,
-        "year": df["year"].unique().tolist(),
-        "slope_MLE": a,
-        "intercept_MLE": b,
-        "p1_MLE": p1,
-        "trend_MLE": trend,
-        "mle_status": mle_status,
-        "mle_iters": mle_iters,
-        "tolerance": tolerance,
-        "bootstrap_CI": ci_bs,
-        "bs_trend": bs_trend,
-        "binomial_slope": a_bin,
-        "binomial_p1": p1_bin,
-        "binomial_trend": trend_bin,
-    }
 
 def format_results(results: list[dict]) -> pd.DataFrame:
     """結果レコード群を CSV 出力用に整形して DataFrame にする."""
@@ -1028,6 +920,9 @@ def format_results(results: list[dict]) -> pd.DataFrame:
         
         # すべての数値項目を安全に丸める
         for key in (
+            "nd_ratio",
+            "dl_min",
+            "dl_max",
             "slope_simple",
             "intercept_simple",
             "p1_simple",
@@ -1102,26 +997,40 @@ def run_analysis_for_file(
     return df_results
 
 
+#import sys
+#import argparse
+#from typing import Optional, Sequence
+
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
-    """コマンドライン引数を解析する."""
+    """コマンドライン引数を解析する。"""
+
     parser = argparse.ArgumentParser(
         description="KDE-MLE による POPs 年次トレンド解析（環境省法）",
     )
+
     parser.add_argument(
         "filenames",
         nargs="*",
         default=list(DEFAULT_FILENAMES),
         help=f"解析するファイル名（拡張子なし）。既定: {' '.join(DEFAULT_FILENAMES)}",
     )
+
     parser.add_argument(
-        "--data-dir", default="data", help="入力 CSV のディレクトリ（既定: data）"
+        "--data-dir",
+        default="data",
+        help="入力 CSV のディレクトリ（既定: data）",
     )
+
     parser.add_argument(
         "--output-dir",
         default="outputs",
         help="出力 CSV のディレクトリ（既定: outputs）",
     )
-    return parser.parse_args(argv)
+
+    args, unknown = parser.parse_known_args(argv)
+
+    return args
+
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
