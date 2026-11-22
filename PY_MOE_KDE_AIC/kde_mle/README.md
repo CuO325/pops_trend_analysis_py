@@ -91,14 +91,18 @@ ci傾き ci_a_s = (-0.0113, -0.00339), ci切片 ci_b_s = (0.5182, 0.5853)
 2. **固定 KDE 下での負の対数尤度（NLL）定義**
    `kde_fixed` を固定した状態で、パラメータ \theta = (a, b) に対する負の対数尤度を定義します。
    
-   $$\text{NLL}_{\text{fixed}}(a, b) = -\sum_{i=1}^{n} \ln\left(\text{kde\_fixed}.\text{pdf}(y_i - (a x_{\text{centered}, i} + b)) + 10^{-10}\right)$$
+   $$
+   \text{NLL}_{\text{fixed}}(a, b) = -\sum_{i=1}^{n} \ln\left(\text{kde\_fixed}.\text{pdf}(y_i - (a x_{\text{centered}, i} + b)) + 10^{-10}\right)
+   $$
    
 4. **数値ヘッセ行列と標準誤差の算出（`calc_coef_ci_hessian`）**
    推定点 \hat{\theta} = (\hat{a}_1, \hat{b}_1) の周辺で微小ステップ \varepsilon = 10^{-4} を用いた中心差分から 2 \times 2 の数値ヘッセ行列 H を求め、逆行列 \text{Cov} = H^{-1} の対角成分から標準誤差（\text{SE}_a, \text{SE}_b）を算出します（逆行列が存在しない場合や対角成分が 0 以下の場合は `(np.nan, np.nan)`）。
 5. **正規近似による 95% 信頼区間**
    標準正規分布の上側 2.5\% 点 z = \Phi^{-1}(1 - \alpha/2)（\alpha = 0.05）を用いて信頼区間を求めます。
    
-   $$\text{CI}_a = \hat{a}_1 \pm z \cdot \text{SE}_a, \qquad \text{CI}_b = \hat{b}_1 \pm z \cdot \text{SE}_b$$
+   $$
+   \text{CI}_a = \hat{a}_1 \pm z \cdot \text{SE}_a, \qquad \text{CI}_b = \hat{b}_1 \pm z \cdot \text{SE}_b
+   $$
 
 #### `iterative` 版との違いと CSV 出力カラム
 * **手法の違い**：`simple` 版は **数値ヘッセ行列による漸近信頼区間**（`calc_coef_ci_hessian`）を用いるのに対し、`iterative` 版（`run_mle_and_aic_iterative`）は収束後の KDE を用いた **残差ブートストラップ**（`calc_coef_ci_bootstrap_kde`、デフォルト `n_boot=500`）で区間を算出します。
@@ -112,12 +116,18 @@ ci傾き ci_a_s = (-0.0113, -0.00339), ci切片 ci_b_s = (0.5182, 0.5853)
 
 通常の \text{AIC} = -2 \ln L + 2k に対し、サンプルサイズ n とパラメータ数 k を用いて以下の補正項を加えます。
 
-$$\text{AICc} = \text{AIC} + \frac{2k(k + 1)}{n - k - 1}$$
+$$
+\text{AICc} = \text{AIC} + \frac{2k(k + 1)}{n - k - 1}
+$$
 
 * **定数モデル（モデル0：傾向なし y = b_0）**：パラメータ数 k = 1
-  $$\text{AICc}_0 = \text{AIC}_0 + \frac{4}{n - 2}$$
+  $$
+  \text{AICc}_0 = \text{AIC}_0 + \frac{4}{n - 2}
+  $$
 * **線形モデル（モデル1：経年傾向あり y = ax + b）**：パラメータ数 k = 2
-  $$\text{AICc}_1 = \text{AIC}_1 + \frac{12}{n - 3}$$
+  $$
+  \text{AICc}_1 = \text{AIC}_1 + \frac{12}{n - 3}
+  $$
 
 *(※ $n - k - 1 \le 0$ の場合は $\infty$ を返します)*
 
@@ -126,10 +136,12 @@ $$\text{AICc} = \text{AIC} + \frac{2k(k + 1)}{n - k - 1}$$
 \text{AICc}_0 と \text{AICc}_1 の差
 \Delta \text{AICc} = \text{AICc}_0 - \text{AICc}_1 から、線形モデル（傾向あり）が支持される事後確率（赤池重み）を算出します。
 
-$$p_{1,c} = \frac{1}{1 + \exp\left(-\frac{1}{2}(\text{AICc}_0 - \text{AICc}_1)\right)}$$
+$$
+p_{1,c} = \frac{1}{1 + \exp\left(-\frac{1}{2}(\text{AICc}_0 - \text{AICc}_1)\right)}
+$$
 
 ### AIC と AICc の違い・使い分け
-* **小標本時の過学習抑制**：サンプル数 $n$ が小さいとき、通常の AIC はパラメータ数の多い線形モデル（モデル1）を過大評価しやすい傾向があります。AICc は k=2 に対してより大きなペナルティを与えるため、**p_{1,c} は p_1 よりも保守的（慎重）な値**になります。
+* **小標本時の過学習抑制**：サンプル数 n が小さいとき、通常の AIC はパラメータ数の多い線形モデル（モデル1）を過大評価しやすい傾向があります。AICc は k=2 に対してより大きなペナルティを与えるため、**p_{1,c} は p_1 よりも保守的（慎重）な値**になります。
 * **大標本での一致**：サンプル数 n が十分に大きい場合、補正項 \frac{2k(k+1)}{n-k-1} \to 0 となるため、\text{AICc} は \text{AIC} に一致します。
 
 プロット画像付きの解析モデルのPY版（PY_pops_moe_analysis_plusなど）やブラウザ上で操作するST版（ST_ti_fft_kde_regression）もあります。
