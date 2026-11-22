@@ -61,7 +61,7 @@ Bayes Factor / 階層ベイズ / SARIMA
 - 季節変動を示す高頻度モニタリングの解析
 - break pointの解析
   
-<img width="700" height="600" alt="PCB-Di_mean_fit_20260604_171348" src="https://github.com/user-attachments/assets/0d102940-2505-4c21-b6b9-0e852035b961" />
+<img width="750" height="600" alt="PCB-Di_mean_fit_20260604_171348" src="https://github.com/user-attachments/assets/0d102940-2505-4c21-b6b9-0e852035b961" />
 
 `ST_SARIMA_prediction`
 - 次年度の予測とアラート
