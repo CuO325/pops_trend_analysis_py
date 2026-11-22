@@ -3,7 +3,23 @@
 ---
 
 # 📘 README — kde_mle_iterative_v1_1d.py
-### kde_mle_iterative_v1_1e.py （計算時間がかかる回帰係数の信頼区間、AICｃの計算でできるバージョン）
+### kde_mle_iterative_v1_1e.py （計算時間がかかる回帰係数の信頼区間、AICｃの計算ができるバージョン）
+実行例
+=== Running KDE-MLE (simple) ===
+Slope (a): -0.0074, Intercept (b): 0.5518, p1: 0.9991 → p1 >= 0.95 傾向あり
+ci傾き ci_a_s = (-0.0113, -0.00339), ci切片 ci_b_s = (0.5182, 0.5853)
+  [AICc確認] AICc0 = 46.3411, AICc1 = 32.3388, p1_c = 0.9991
+
+=== Running KDE-MLE (iterative) ===
+状態: 収束 (反復回数: 1)
+傾き a = -0.0072, 切片 b = 0.5359, p1 = 0.9998 → p1 >= 0.95 傾向あり
+傾き a = -0.0072 (-0.0101, -0.0041), 切片 b = 0.5359 (0.4966, 0.5451),
+  [AICc確認] AICc0 = 46.3411, AICc1 = 29.7422, p1_c = 0.9998
+
+=== Running KDE-MLE (MOE Fig.5 Yearly Pooled) ===
+状態: 最大回数到達 (反復回数: 50)
+傾き a = -0.0066, 切片 b = -0.6377,  ci_a_moe(-0.0101, -0.0029),  ci_b_moe(-0.6919, -0.6378)　p1 = 0.9882 → p1 >= 0.95 傾向あり
+  [AICc確認] AICc0 = 102.9499, AICc1 = 94.1130, p1_c = 0.9881
 
 ## KDE‑MLE / Bootstrap / Logistic Model　(環境省法)
 
