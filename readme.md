@@ -46,8 +46,9 @@ Bayes Factor / 階層ベイズ / SARIMA
 - Bayes Factorによるモデル比較
 - ブラウザ上で動作
 - 最新機能を実装
-    バッチ処理には
-    > [PY_pops_moe_analysis_plus](./PY_pops_moe_analysis_plus/)　が、ST_ti_fft_kde_regressionとほぼ同機能です。
+- 
+  バッチ処理には、
+    > [PY_pops_moe_analysis_plus](./PY_pops_moe_analysis_plus/)　が、ST_ti_fft_kde_regressionと解析機能がほぼ同等です。
 
 👉 **[PY_Hierarchical_numpyro](./PY_Hierarchical_numpyro/)**
 - 地域別の傾向解析
