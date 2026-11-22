@@ -66,6 +66,9 @@ Bayes Factor / 階層ベイズ / SARIMA
 `ST_SARIMA_prediction`
 - 次年度の予測とアラート
 
+<img width="1460" height="785" alt="hedo_pcb" src="https://github.com/user-attachments/assets/1d5285b4-d4b4-4cd0-ac57-15ca854df121" />
+
+
 ### 参照実装（Reference implementation）
 `PY_ti_fft_kde_regression`などは、手法の検証の目的で保存されています。
 - emceeを用いたオリジナル実装　(初期段階で作成されました。遅いです)
