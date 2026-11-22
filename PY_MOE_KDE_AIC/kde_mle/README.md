@@ -6,6 +6,8 @@
 
 ## `kde_mle_iterative_v1_1e.py`（回帰係数の信頼区間・AICc 算出対応版）
 
+[(1) 環境省(2025): 経年分析の方法等に関する補足説明](https://www.env.go.jp/chemi/kurohon/2025/shosai/3_8.pdf)
+
 実行例: 
   結果の詳細はコンソールに表示され、csv形式でファイルに保存されます。
 ```
