@@ -21,7 +21,7 @@ Bayes Factor / 階層ベイズ / SARIMA
 
 [(1) 環境省(2025): 経年分析の方法等に関する補足説明](https://www.env.go.jp/chemi/kurohon/2025/shosai/3_8.pdf)
 
-<img width="802" height="588" alt="13HCBD_ヘキサクロロブタ-1_3-ジエン_regression_20260806_181859" src="https://github.com/user-attachments/assets/1e9fdd6b-ec87-4fb7-acc1-e9c4c7154f00" />
+<img width="802" height="588" alt="13HCBD_ヘキサクロロブタ-1_3-ジエン_regression_20260806_195424" src="https://github.com/user-attachments/assets/5c13bf30-6dcc-4b47-8158-f778aae32113" />
 
 ---
 ## 🚀 初めて利用する方へ
