@@ -82,19 +82,19 @@ ci傾き ci_a_s = (-0.0113, -0.00339), ci切片 ci_b_s = (0.5182, 0.5853)
 ---
 ### 1-2. KDE-MLE（simple）における信頼区間（`slope_ci_simple`, `intercept_ci_simple`）
 
-[`module_kde_mle_2a.py`](https://github.com/CuO325/pops_trend_analysis_py/tree/main/PY_MOE_KDE_AIC/kde_mle/module) の `run_mle_and_aic_simple(df)` では、線形モデルの推定値 $(\hat{a}_1, \hat{b}_1)$ に基づく残差から固定 KDE を構築したうえで、その負の対数尤度関数の**数値ヘッセ行列（`calc_coef_ci_hessian`）**から 95% 信頼区間（`ci_a_s`, `ci_b_s`）を算出しています。
+[`module_kde_mle_2a.py`](https://github.com/CuO325/pops_trend_analysis_py/tree/main/PY_MOE_KDE_AIC/kde_mle/module) の `run_mle_and_aic_simple(df)` では、線形モデルの推定値 (\hat{a}_1, \hat{b}_1) に基づく残差から固定 KDE を構築したうえで、その負の対数尤度関数の**数値ヘッセ行列（`calc_coef_ci_hessian`）**から 95% 信頼区間（`ci_a_s`, `ci_b_s`）を算出しています。
 
 #### 計算アルゴリズム（`run_mle_and_aic_simple` ＋ `calc_coef_ci_hessian`）
 
 1. **最適解残差からの固定 KDE 構築**
-   線形モデル（`L-BFGS-B` 最適化）で得られた傾き $\hat{a}_1$、切片 $\hat{b}_1$ から残差 $e_{\text{opt}} = y - (\hat{a}_1 x_{\text{centered}} + \hat{b}_1)$ を求め、`gaussian_kde(e_opt)` により固定カーネル密度 `kde_fixed` を作成します（`np.std(e_opt) < 1e-6` の場合は `(np.nan, np.nan)`）。
+   線形モデル（`L-BFGS-B` 最適化）で得られた傾き \hat{a}_1、切片 \hat{b}_1 から残差 e_{\text{opt}} = y - (\hat{a}_1 x_{\text{centered}} + \hat{b}_1) を求め、`gaussian_kde(e_opt)` により固定カーネル密度 `kde_fixed` を作成します（`np.std(e_opt) < 1e-6` の場合は `(np.nan, np.nan)`）。
 2. **固定 KDE 下での負の対数尤度（NLL）定義**
-   `kde_fixed` を固定した状態で、パラメータ $\theta = (a, b)$ に対する負の対数尤度を定義します。
+   `kde_fixed` を固定した状態で、パラメータ \theta = (a, b) に対する負の対数尤度を定義します。
    
    $$\text{NLL}_{\text{fixed}}(a, b) = -\sum_{i=1}^{n} \ln\left(\text{kde\_fixed}.\text{pdf}(y_i - (a x_{\text{centered}, i} + b)) + 10^{-10}\right)$$
    
 4. **数値ヘッセ行列と標準誤差の算出（`calc_coef_ci_hessian`）**
-   推定点 $\hat{\theta} = (\hat{a}_1, \hat{b}_1)$ の周辺で微小ステップ $\varepsilon = 10^{-4}$ を用いた中心差分から $2 \times 2$ の数値ヘッセ行列 H を求め、逆行列 \text{Cov} = H^{-1} の対角成分から標準誤差（\text{SE}_a, \text{SE}_b）を算出します（逆行列が存在しない場合や対角成分が $0$ 以下の場合は `(np.nan, np.nan)`）。
+   推定点 \hat{\theta} = (\hat{a}_1, \hat{b}_1) の周辺で微小ステップ \varepsilon = 10^{-4} を用いた中心差分から 2 \times 2 の数値ヘッセ行列 H を求め、逆行列 \text{Cov} = H^{-1} の対角成分から標準誤差（\text{SE}_a, \text{SE}_b）を算出します（逆行列が存在しない場合や対角成分が 0 以下の場合は `(np.nan, np.nan)`）。
 5. **正規近似による 95% 信頼区間**
    標準正規分布の上側 2.5\% 点 z = \Phi^{-1}(1 - \alpha/2)（\alpha = 0.05）を用いて信頼区間を求めます。
    
