@@ -21,9 +21,10 @@ Bayes Factor / 階層ベイズ / SARIMA
 
 [(1) 環境省(2025): 経年分析の方法等に関する補足説明](https://www.env.go.jp/chemi/kurohon/2025/shosai/3_8.pdf)
 
-<img src="./DEMO_DATA/PCB-Di_mean_fit_20260604_171348.png" alt="解析結果のグラフ例" width="600">
+
 ---
 ## 🚀 初めて利用する方へ
+
 **環境省のPOPsモニタリングの解析法をお探しの場合は、
     **[PY_MOE_KDE_AIC/kde_mle](./PY_MOE_KDE_AIC/kde_mle/)** をお試しください。
 
@@ -55,7 +56,9 @@ Bayes Factor / 階層ベイズ / SARIMA
 👉 `ST_BREAK_POINTs`
 - 季節変動を示す高頻度モニタリングの解析
 - break pointの解析
-<img src="./DEMO_DATA/PCB-Di_mean_fit_20260604_171348.png" alt="解析結果のグラフ例" width="600">
+  
+<img width="3601" height="1744" alt="PCB-Di_mean_fit_20260604_171348" src="https://github.com/user-attachments/assets/0d102940-2505-4c21-b6b9-0e852035b961" />
+
 `ST_SARIMA_prediction`
 - 次年度の予測とアラート
 
