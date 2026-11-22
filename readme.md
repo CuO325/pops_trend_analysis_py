@@ -52,6 +52,9 @@ Bayes Factor / 階層ベイズ / SARIMA
 👉 **[PY_Hierarchical_numpyro](./PY_Hierarchical_numpyro/)**
 - 地域別の傾向解析
 - 高速な階層ベイズ
+  
+<img width="1200" height="750" alt="水質_α-HCH_44" src="https://github.com/user-attachments/assets/55f39c51-276d-4df0-95c1-c6b0f58367a9" />
+
 
 ### 季節変動を考慮した時系列モニタリングの解析
 👉 `ST_BREAK_POINTs`
