@@ -17,50 +17,53 @@ Bayes Factor / 階層ベイズ / SARIMA
 [![UI Framework](https://img.shields.io/badge/UI-Streamlit-FF4B4B.svg)](https://streamlit.io/)
 
 残留性有機汚染物質（POPs）をはじめとする環境データの時系列解析や統計モデリングを行うためのPythonスクリプトおよびWebアプリケーション群です。  
-環境省（MOE）で採用されている統計手法(1)の再現から、MCMCを用いた階層ベイズモデル、FFT（高速フーリエ変換）との融合モデルまで、環境データの解析に必要な手法を網羅しています。
+環境省（MOE）で採用されているいくつかの統計手法(1)に加えて、MCMCを用いた階層ベイズモデル、FFT（高速フーリエ変換）との融合モデルまで、環境データの解析に利用可能なアプリとしてまとめています。
 
 [(1) 環境省(2025): 経年分析の方法等に関する補足説明](https://www.env.go.jp/chemi/kurohon/2025/shosai/3_8.pdf)
 
+<img src="./DEMO_DATA/PCB-Di_mean_fit_20260604_171348.png" alt="解析結果のグラフ例" width="600">
 ---
 ## 🚀 初めて利用する方へ
 **環境省のPOPsモニタリングの解析法をお探しの場合は、
-👉 **[PY_MOE_KDE_AIC/kde_mle](./PY_MOE_KDE_AIC/kde_mle/)** をお試しください。
+    **[PY_MOE_KDE_AIC/kde_mle](./PY_MOE_KDE_AIC/kde_mle/)** をお試しください。
 
-**GUIやHTML出力をご希望の場合は、ファイル名がST_で始まるアプリをお試しください。
-👉 **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)**　が推奨です。
+**ファイル名がST_で始まるアプリをお試しください。GUI操作やHTML出力ができます。
+    **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)**　が推奨です。
 
 
 ---
 ## Current Status
 
 ### 推奨版（Current implementation）
-**[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** 
+👉 **[PY_MOE_KDE_AIC/kde_mle](./PY_MOE_KDE_AIC/kde_mle/)** AICによるモデル比較(環境省法に準拠)
 
-> [PY_pops_moe_analysis_plus](./PY_pops_moe_analysis_plus/)　がほぼ、同機能です。バッチ処理はこちらが便利です。
+👉 **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** Bayes Factorによるモデル比較の追加
 - 全体の傾向解析
 - FFT-KDE高速尤度
 - Thermodynamic Integration (TI)
 - Bayes Factorによるモデル比較
 - ブラウザ上で動作
 - 最新機能を実装
+    バッチ処理には
+    > [PY_pops_moe_analysis_plus](./PY_pops_moe_analysis_plus/)　が、ST_ti_fft_kde_regressionとほぼ同機能です。
 
-**[PY_Hierarchical_numpyro](./PY_Hierarchical_numpyro/)**
-
+👉 **[PY_Hierarchical_numpyro](./PY_Hierarchical_numpyro/)**
 - 地域別の傾向解析
 - 高速な階層ベイズ
 
+### 季節変動を考慮した時系列モニタリングの解析
+👉 `ST_BREAK_POINTs`
+- 季節変動を示す高頻度モニタリングの解析
+- break pointの解析
+<img src="./DEMO_DATA/PCB-Di_mean_fit_20260604_171348.png" alt="解析結果のグラフ例" width="600">
+`ST_SARIMA_prediction`
+- 次年度の予測とアラート
+
 ### 参照実装（Reference implementation）
-
-`PY_ti_fft_kde_regression`など**推奨以外**のPY_スプリプトは、手法の検証やバッチ処理などの目的で保存されています。
-
-- emceeを用いたオリジナル実装
-- 再現性確保のため保存
+`PY_ti_fft_kde_regression`などは、手法の検証の目的で保存されています。
+- emceeを用いたオリジナル実装　(初期段階で作成されました。遅いです)
 - 手法検証および比較用
 - 目的に応じたバッチ処理用
-
-### その他のツール
- `ST_BREAK_POINTs`/ `ST_SARIMA_prediction`
-- 季節変動を示す高頻度モニタリングの解析
 
 ---
 ## ✨ 主な機能と特徴
