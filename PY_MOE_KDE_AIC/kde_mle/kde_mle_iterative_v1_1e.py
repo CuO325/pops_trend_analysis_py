@@ -732,6 +732,7 @@ def run_mle_and_aic_yearly_pooled(
         x_base,
         converged_status,
         final_iter,
+        tolerance,
     )
 
     #aic0, aic1, p1 = compute_aic_posterior(ll1, ll0)
@@ -997,6 +998,7 @@ def analyze_substance(df: pd.DataFrame, substance: str, filename: str) -> Option
             _,
             status_moe,
             iters_moe,
+            tolerance_moe,
         ) = run_mle_and_aic_yearly_pooled(df)
         trend_moe = (
             f"p1 >= {P1_THRESHOLD} 傾向あり"
@@ -1082,6 +1084,7 @@ def analyze_substance(df: pd.DataFrame, substance: str, filename: str) -> Option
         "trend_moe_yearly": trend_moe,
         "moe_yearly_status": status_moe,
         "moe_yearly_iters": iters_moe,
+        "tolerance_moe": tolerance_moe,
         # 4. Bootstrap
         "bootstrap_CI": ci_bs,
         "bs_trend": bs_trend,
