@@ -21,7 +21,7 @@ Bayes Factor / 階層ベイズ / SARIMA
 
 [(1) 環境省(2025): 経年分析の方法等に関する補足説明](https://www.env.go.jp/chemi/kurohon/2025/shosai/3_8.pdf)
 
-<img width="650" height="600" alt="13HCBD_ヘキサクロロブタ-1_3-ジエン_regression_20260806_195424" src="https://github.com/user-attachments/assets/5c13bf30-6dcc-4b47-8158-f778aae32113" />
+<img width="750" height="600" alt="13HCBD_ヘキサクロロブタ-1_3-ジエン_regression_20260806_195424" src="https://github.com/user-attachments/assets/5c13bf30-6dcc-4b47-8158-f778aae32113" />
 
 ---
 ## 🚀 初めて利用する方へ
@@ -53,7 +53,7 @@ Bayes Factor / 階層ベイズ / SARIMA
 - 地域別の傾向解析
 - 高速な階層ベイズ
   
-<img width="650" height="600" alt="水質_α-HCH_44" src="https://github.com/user-attachments/assets/55f39c51-276d-4df0-95c1-c6b0f58367a9" />
+<img width="750" height="600" alt="水質_α-HCH_44" src="https://github.com/user-attachments/assets/55f39c51-276d-4df0-95c1-c6b0f58367a9" />
 
 
 ### 季節変動を考慮した時系列モニタリングの解析
@@ -66,7 +66,7 @@ Bayes Factor / 階層ベイズ / SARIMA
 `ST_SARIMA_prediction`
 - 次年度の予測とアラート
 
-<img width="650" height="600" alt="hedo_pcb" src="https://github.com/user-attachments/assets/1d5285b4-d4b4-4cd0-ac57-15ca854df121" />
+<img width="750" height="600" alt="hedo_pcb" src="https://github.com/user-attachments/assets/1d5285b4-d4b4-4cd0-ac57-15ca854df121" />
 
 
 ### 参照実装（Reference implementation）
