@@ -2,7 +2,8 @@
 
 ---
 
-# 📘 README — KDE-MLE Trend Analysis (`kde_mle_iterative_v1_1e.py`)
+# 📘 README — KDE-MLE / AIC
+## KDE-based Maximum Likelihood Estimation with AIC model selection
 
 ## `kde_mle_iterative_v1_1e.py`（回帰係数の信頼区間・AICc 算出対応版）
 
