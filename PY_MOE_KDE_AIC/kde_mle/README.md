@@ -2,7 +2,7 @@
 
 ---
 
-# 📘 README — KDE-MLE Trend Analysis (`kde_mle_iterative_v1_1d.py` / `v1_1e.py`)
+# 📘 README — KDE-MLE Trend Analysis (`kde_mle_iterative_v1_1e.py`)
 
 ## `kde_mle_iterative_v1_1e.py`（回帰係数の信頼区間・AICc 算出対応版）
 
@@ -172,7 +172,7 @@ PY_MOE_KDE_AIC
             ├──　examples/
             ├── module/
             │   └── module_kde_mle_2a.py                 # KDE-MLE の実装
-            ├── kde_mle_iterative_v1_1d.py               # 本 README のコード
+            ├── kde_mle_iterative_v1_1e.py               # 本 README のコード
             └── README.md
 
 ```
