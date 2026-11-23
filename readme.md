@@ -58,7 +58,7 @@ pops_trend_analysis_py/
 ### 推奨版（Current implementation）
 👉 **[PY_MOE_KDE_AIC/kde_mle](./PY_MOE_KDE_AIC/kde_mle/)** AICによるモデル比較(環境省法に準拠)
 
-👉 **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** Bayes Factorによるモデル比較の追加
+👉 **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)** AICでなくBayes Factorによるモデル比較
 - 全体の傾向解析
 - FFT-KDE高速尤度
 - Thermodynamic Integration (TI)
