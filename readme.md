@@ -21,17 +21,36 @@ Bayes Factor / 階層ベイズ / SARIMA
 
 [(1) 環境省(2025): 経年分析の方法等に関する補足説明](https://www.env.go.jp/chemi/kurohon/2025/shosai/3_8.pdf)
 
+
+
+### 📁 全体構成
+```text
+pops_trend_analysis_py/
+├── PY_emcee_kde_regression/     # KDEベイズ回帰 (emcee版　遅いです)
+├── PY_Hierarchical_emcee/       # 階層ベイズモデル (emcee版)　地点別の傾向分析
+├── PY_Hierarchical_numpyro/     # 階層ベイズモデル (NumPyro版)　地点別の傾向分析
+├── PY_MOE_KDE_AIC/              # MOE / KDE-AIC 比較解析　（環境省の黒本記載の方法です）
+│   └── kde_mle                  # 💡**環境省法　更新しました**
+├── PY_pops_moe_analysis_plus/   # KDEベイズ回帰 (NumPyro版　速いです)
+│ 
+├── ST_ti_fft_kde_regression/    # FFTを用いたKDE高速化モデル　(ブラウザ上で動作。TIも選択できます。スクリプトが最新です。)
+├── ST_BREAK_POINTs/             # 変化点分析 (Breakpoint)　高頻度測定での季節変動を除外した経年変動を折れ線で解析します。
+├── ST_SARIMA_prediction/        # 時系列予測 (SARIMA) 高頻度測定の精度管理、警鐘のためのアプリです。
+└── README.md
+
+```
+---
+
 <img width="750" height="600" alt="13HCBD_ヘキサクロロブタ-1_3-ジエン_regression_20260806_195424" src="https://github.com/user-attachments/assets/5c13bf30-6dcc-4b47-8158-f778aae32113" />
 
 ---
 ## 🚀 初めて利用する方へ
 
-**環境省のPOPsモニタリングの解析法をお探しの場合は、
+#### 環境省のPOPsモニタリングの解析法をお探しの場合は、
     **[PY_MOE_KDE_AIC/kde_mle](./PY_MOE_KDE_AIC/kde_mle/)** をお試しください。
 
-**ファイル名がST_で始まるアプリをお試しください。GUI操作やHTML出力ができます。
-    **[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)**　が推奨です。
-
+#### ブラウザによる操作をしたい方は、ファイル名がST_で始まるアプリをお試しください。
+    ベイズ法による解析では、**[ST_ti_fft_kde_regression](./ST_ti_fft_kde_regression)**　が推奨です。
 
 ---
 ## Current Status
