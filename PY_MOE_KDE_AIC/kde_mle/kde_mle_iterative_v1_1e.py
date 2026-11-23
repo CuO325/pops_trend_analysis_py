@@ -886,12 +886,22 @@ def analyze_substance(df: pd.DataFrame, substance: str, filename: str) -> Option
         if p1_s >= P1_THRESHOLD
         else f"p1 < {P1_THRESHOLD} 傾向なし"
     )
-    print(f"Slope (a): {a1:.4f}, Intercept (b): {b1:.4f}, p1: {p1_s:.4f} → {trend_s}")
-    print(f"ci傾き ci_a_s = { ci_a_s}, ci切片 ci_b_s = {ci_b_s}")
+    #print(f"状態: {mle_status} (反復回数: {mle_iters})")
+    print(f"p1_s = {p1_s:.4f} → {trend_s}")
     print(
-        f"  [AICc確認] AICc0 = {aicc0_1:.4f}, AICc1 = {aicc1_1:.4f}, "
-        f"p1_c = {p1_c_s:.4f}"
+        f"傾き a = {a1:.4f} ({ci_a_s[0]:.4f}, {ci_a_s[1]:.4f})\n"
+        f"切片 b = {b1:.4f} ({ci_b_s[0]:.4f}, {ci_b_s[1]:.4f})")
+    #print(f"  傾きci_a_i = {ci_a_i}, 切片ci_b_i = {ci_b_i}")
+    print(
+        f"  [AICc確認] AICc0 = {aicc0_1:.4f}, AICc1 = {aicc1_1:.4f}\n"
+        f"p1_c_s = {p1_c_s:.4f}"
     )
+    #print(f"Slope (a): {a1:.4f}, Intercept (b): {b1:.4f}, p1: {p1_s:.4f} → {trend_s}")
+    #print(f"ci傾き ci_a_s = { ci_a_s}, ci切片 ci_b_s = {ci_b_s}")
+    #print(
+    #    f"  [AICc確認] AICc0 = {aicc0_1:.4f}, AICc1 = {aicc1_1:.4f}, "
+    #    f"p1_c = {p1_c_s:.4f}"
+    #)
   
     # --- ② KDE-MLE（iterative） ---
     print("\n=== Running KDE-MLE (iterative) ===")
@@ -918,13 +928,13 @@ def analyze_substance(df: pd.DataFrame, substance: str, filename: str) -> Option
             else f"p1 < {P1_THRESHOLD} 傾向なし"
         )
         print(f"状態: {mle_status} (反復回数: {mle_iters})")
-        print(f"傾き a = {a:.4f}, 切片 b = {b:.4f}, p1 = {p1:.4f} → {trend}")
+        print(f"p1 = {p1:.4f} → {trend}")
         print(
-            f"傾き a = {a:.4f} ({ci_a_i[0]:.4f}, {ci_a_i[1]:.4f}), "
-            f"切片 b = {b:.4f} ({ci_b_i[0]:.4f}, {ci_b_i[1]:.4f}), ")
+            f"傾き a = {a:.4f} ({ci_a_i[0]:.4f}, {ci_a_i[1]:.4f})\n"
+            f"切片 b = {b:.4f} ({ci_b_i[0]:.4f}, {ci_b_i[1]:.4f})")
         #print(f"  傾きci_a_i = {ci_a_i}, 切片ci_b_i = {ci_b_i}")
         print(
-            f"  [AICc確認] AICc0 = {aicc0:.4f}, AICc1 = {aicc1:.4f}, "
+            f"  [AICc確認] AICc0 = {aicc0:.4f}, AICc1 = {aicc1:.4f}\n"
             f"p1_c = {p1_c:.4f}"
         )
     except Exception as e:
@@ -959,14 +969,13 @@ def analyze_substance(df: pd.DataFrame, substance: str, filename: str) -> Option
             else f"p1 < {P1_THRESHOLD} 傾向なし"
         )
         print(f"状態: {status_moe} (反復回数: {iters_moe})")
+        print(f"p1_moe = {p1_moe:.4f} → {trend_moe}")
         print(
-            f"傾き a = {a_moe:.4f}, 切片 b = {b_moe:.4f}, "
-            f" ci_a_moe{ ci_a_moe},  ci_b_moe{ ci_b_moe}"
-            f"p1 = {p1_moe:.4f} → {trend_moe}"
-        )
+            f"傾き a = {a_moe:.4f}, ci_a_moe = {ci_a_moe[0]:.4f}, {ci_a_moe[1]:.4f}\n"
+            f"切片 b = {b_moe:.4f},  ci_b_moe = {ci_b_moe[0]:.4f}, {ci_b_moe[1]:.4f}")
         print(
-            f"  [AICc確認] AICc0 = {aicc0_moe:.4f}, AICc1 = {aicc1_moe:.4f}, "
-            f"p1_c = {p1_c_moe:.4f}"
+            f"  [AICc確認] AICc0 = {aicc0_moe:.4f}, AICc1 = {aicc1_moe:.4f}\n"
+            f"p1_c_moe = {p1_c_moe:.4f}"
         )
     except Exception as e:
         print(f"年度別合成KDEエラー: {e}")
