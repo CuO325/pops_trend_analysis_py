@@ -130,7 +130,7 @@ p1_c_moe = 0.9801
 * **手法の違い**：`simple` 版は **数値ヘッセ行列による漸近信頼区間**（`calc_coef_ci_hessian`）を用いるのに対し、`iterative` 版（`run_mle_and_aic_iterative`）は収束後の KDE を用いた **残差ブートストラップ**（`calc_coef_ci_bootstrap_kde`、デフォルト `n_boot=500`）で区間を算出します。
 * **CSV 出力カラム**：`slope_simple` / `slope_ci_simple`（傾き $a$ と 95% 信頼区間）、`intercept_simple` / `intercept_ci_simple`（切片 $b$ と 95% 信頼区間）として出力されます。
 
-## 2. 小標本補正赤池情報量基準（AICc）とモデル重み（ $p_{1,c}$ ）　$p_{1,c}$
+## 2. 小標本補正赤池情報量基準（AICc）とモデル重み（ $p_{1,c}$ )
 
 環境モニタリングデータでは物質や媒体によってサンプル数 n が限られる（例：n = 24 付近）ケースがあるため、通常の AIC に加えて **AICc（Corrected AIC）** を計算しています。
 
