@@ -992,7 +992,7 @@ def run_analysis_for_file(
     print(f"\n--- 最終結果（テーブル形式）  {filename} ---")
     print(df_results.to_string(index=False))
 
-    result_path = os.path.join(output_dir, f"{filename}_2025_moe.csv")
+    result_path = os.path.join(output_dir, f"{filename}_2025_moe_d.csv")
     df_results.to_csv(result_path, index=False, encoding=CSV_ENCODING)
     return df_results
 

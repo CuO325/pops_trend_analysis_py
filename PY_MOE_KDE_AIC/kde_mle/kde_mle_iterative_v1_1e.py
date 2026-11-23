@@ -94,7 +94,7 @@ DEFAULT_MAX_ITER = 50
 DEFAULT_TOLERANCE = 1e-3
 """反復 KDE-MLE のデフォルト収束判定閾値。"""
 
-MAIN_ITERATIVE_MAX_ITER = 30
+MAIN_ITERATIVE_MAX_ITER = 50
 """メイン処理で iterative 版に渡す最大反復回数。"""
 
 # --- 判定・検定 ---
@@ -218,43 +218,58 @@ def compute_aic_posterior(
 # 環境省（図5）準拠：年度ごとの残差 KDE を合成するモデル
 # =====================================================================
 
+def estimate_tolerance_yearly(
+    a0: float,
+    b0: float,
+    x_centered: np.ndarray,
+    y: np.ndarray,
+    warmup: int = 3,
+    min_tol: float = 1e-4,
+    max_tol: float = 1e-2,
+) -> float:
+    """年度別合成 KDE モデルのウォームアップ更新量から収束判定閾値 tolerance を自動推定する."""
+    a, b = a0, b0
+    deltas = []
 
+    for _ in range(warmup):
+        residuals = y - (a * x_centered + b)
+        yearly_kdes = build_yearly_kdes(residuals, x_centered)
+        
+        # 年度別KDEが作れなかった場合（全NDなど）はデフォルト値を返す
+        if not yearly_kdes:
+            return DEFAULT_TOLERANCE
+
+        res = minimize(
+            neg_log_likelihood_yearly_fixed_kde,
+            [a, b],
+            args=(x_centered, y, yearly_kdes),
+            method="L-BFGS-B",
+        )
+        a_new, b_new = res.x
+        deltas.append(np.linalg.norm([a_new - a, b_new - b]))
+        a, b = a_new, b_new
+        
+    if not deltas:
+        return DEFAULT_TOLERANCE
+
+    med = float(np.median(deltas))
+    # 下限(min_tol)だけでなく、初期ジャンプが大きい場合に備えて上限(max_tol)も設けると安全
+    
+    return float(np.clip(med * 1, min_tol, max_tol)) # ※倍率については後述の注意点を参照
 
 def build_yearly_kdes(
     residuals: np.ndarray,
     x_years: np.ndarray,
     min_bw: float = YEARLY_MIN_BW,
+    center_yearly: bool = True,  # ★ 追加
 ) -> list:
-    """年度ごとに残差の KDE オブジェクトを作成してリストで返す.
-
-    年度ごとにバンド幅を独立に決めると、ND 値が集中した年度で KDE が
-    スパイク化する。これを避けるため、全残差から求めた基準バンド幅
-    ``target_bw_abs``（``min_bw`` を下限とする）を全年度に共通適用する。
-
-    Parameters
-    ----------
-    residuals : array-like
-        現在のパラメータでの残差。
-    x_years : array-like
-        各サンプルの年度（中心化済みで可）。
-    min_bw : float, optional
-        バンド幅の下限（データスケール）。
-
-    Returns
-    -------
-    list
-        ``scipy.stats.gaussian_kde`` のリスト。
-        有効な年度が無い場合は空リスト。
-    """
     unique_years = np.unique(x_years)
     yearly_kdes = []
 
-    # 全体残差から基準となるバンド幅（標準偏差 × factor）を算出
     overall_std = np.std(residuals)
     if overall_std < YEARLY_STD_EPS:
         return []
     base_kde = gaussian_kde(residuals)
-    # 全体のバンド幅（データスケール上の幅）
     target_bw_abs = max(base_kde.factor * overall_std, min_bw)
 
     for yr in unique_years:
@@ -262,10 +277,13 @@ def build_yearly_kdes(
         if len(yr_res) < 2:
             continue
 
+        # ★ 線形モデルでは True（年度内平均を引いて形だけ合成）
+        # ★ 定数モデルでは False（年度間の平均のズレを残す）
+        if center_yearly:
+            yr_res = yr_res - np.mean(yr_res)
+
         yr_std = np.std(yr_res)
         if yr_std < YEARLY_FLAT_STD_EPS:
-            # 年度内のばらつきが極端に小さい（ND ばかり）場合は、
-            # 擬似的に微小ノイズを加えて全体の幅に合わせる
             yr_res_jitter = yr_res + np.linspace(
                 -YEARLY_FLAT_JITTER, YEARLY_FLAT_JITTER, len(yr_res)
             )
@@ -276,6 +294,7 @@ def build_yearly_kdes(
             yearly_kdes.append(gaussian_kde(yr_res, bw_method=bw_factor))
 
     return yearly_kdes
+
 
 
 def eval_pooled_yearly_pdf(residuals: np.ndarray, yearly_kdes: list) -> np.ndarray:
@@ -322,24 +341,20 @@ def neg_log_likelihood_yearly_fixed_kde(
     except Exception:
         return BAD_FIT_PENALTY
 
-
 def neg_log_likelihood_yearly_0(
     params: Sequence[float], x: np.ndarray, y: np.ndarray
 ) -> float:
-    """【定数モデル用（傾き a=0）・環境省図 5 準拠】負の対数尤度.
-
-    残差から都度、年度別 KDE を再構築する。
-    """
     b0 = params[0]
     residuals = y - b0
     try:
-        yearly_kdes = build_yearly_kdes(residuals, x)
+        # ★ 定数モデルでは年度ごとの平均を引かない（経年変化のズレを残す）
+        yearly_kdes = build_yearly_kdes(residuals, x, center_yearly=False)
         pdf_values = eval_pooled_yearly_pdf(residuals, yearly_kdes)
         log_likelihood = np.sum(np.log(pdf_values + LOG_FLOOR))
         return -log_likelihood
     except Exception:
         return BAD_FIT_PENALTY
-
+    
 
 # =====================================================================
 # 目的関数群（KDE ベースの負の対数尤度）
@@ -412,8 +427,6 @@ def neg_log_likelihood_0(
 
 KdeObjectiveFactory = Callable[[np.ndarray], Callable[..., float]]
 """残差から目的関数を作るファクトリの型（引数: 残差）。"""
-
-
 def _iterative_mle(
     x_centered: np.ndarray,
     y: np.ndarray,
@@ -422,38 +435,10 @@ def _iterative_mle(
     make_objective: KdeObjectiveFactory,
     max_iter: int = DEFAULT_MAX_ITER,
     tolerance: float = DEFAULT_TOLERANCE,
+    damping: float = 0.5,
 ) -> tuple[float, float, float, str, int]:
-    """KDE を固定 → 最適化 → 収束判定 を繰り返す共通ループ.
-
-    ``run_mle_and_aic``（全体 KDE）と ``run_mle_and_aic_yearly_pooled``
-    （年度別合成 KDE）で処理手順が完全に同一なため、目的関数の生成だけを
-    差し替え可能な形で共通化している。
-
-    Parameters
-    ----------
-    x_centered : array-like
-        中心化済みの年度。
-    y : array-like
-        log 濃度。
-    a0, b0 : float
-        初期値（傾き・切片）。
-    make_objective : callable
-        残差を引数に取り、``f(params, x, y) -> float`` を返す関数を返す
-        ファクトリ。
-    max_iter : int, optional
-        最大反復回数。
-    tolerance : float, optional
-        収束判定閾値（パラメータ変化量のユークリッドノルム）。
-
-    Returns
-    -------
-    tuple
-        ``(a1, b1, log_likelihood_1, converged_status, final_iter)``。
-        ``log_likelihood_1`` は最後に実行した最適化の最大対数尤度。
-    """
+    """KDE を固定 → 最適化 → ダンピング更新 → 収束判定 を繰り返す共通ループ."""
     a_current, b_current = a0, b0
-    prev_a, prev_b = a_current, b_current
-
     converged_status = "未収束"
     final_iter = max_iter
     log_likelihood_1 = -np.inf
@@ -470,27 +455,35 @@ def _iterative_mle(
             args=(x_centered, y),
             method="L-BFGS-B",
         )
-        a_new, b_new = result.x
-        log_likelihood_1 = -result.fun
+        a_opt, b_opt = result.x
 
-        # --- 収束判定 ---
-        param_change = np.linalg.norm([a_new - prev_a, b_new - prev_b])
+        # --- 移動平均更新（ダンピング） ---
+        a_next = (1.0 - damping) * a_current + damping * a_opt
+        b_next = (1.0 - damping) * b_current + damping * b_opt
+
+        # --- 収束判定（実際のステップ移動量で判定） ---
+        param_change = np.linalg.norm([a_next - a_current, b_next - b_current])
+
+        
         if param_change < tolerance:
             converged_status = "収束"
             final_iter = i + 1
-            a1, b1 = a_new, b_new
+            a_current, b_current = a_next, b_next
+            # 最終確定パラメータでの対数尤度を再評価
+            final_res = y - (a_current * x_centered + b_current)
+            log_likelihood_1 = -make_objective(final_res)([a_current, b_current], x_centered, y)
             break
 
-        # --- 次の iteration のために更新 ---
-        prev_a, prev_b = a_current, b_current
-        a_current, b_current = a_new, b_new
+        a_current, b_current = a_next, b_next
+        log_likelihood_1 = -result.fun
+
+
     else:
-        # 最大回数到達
-        a1, b1 = a_current, b_current
         converged_status = "最大回数到達"
         final_iter = max_iter
 
-    return a1, b1, log_likelihood_1, converged_status, final_iter
+    return a_current, b_current, log_likelihood_1, converged_status, final_iter
+
 
 
 def _make_global_kde_objective(residuals: np.ndarray) -> Callable[..., float]:
@@ -621,57 +614,13 @@ def calc_coef_ci_bootstrap_yearly(
     ci_b = (float(np.percentile(b_samples, low_q)), float(np.percentile(b_samples, high_q)))
     return ci_a, ci_b
 
-def calc_coef_ci_bootstrap_yearly_old(
-    x_centered: np.ndarray,
-    y: np.ndarray,
-    a_hat: float,
-    b_hat: float,
-    n_boot: int = 500,
-    alpha: float = 0.05,
-    seed: int = 42,
-) -> tuple[tuple[float, float], tuple[float, float]]:
-    """年度別合成 KDE を用いた残差ブートストラップにより傾き a と切片 b の信頼区間を算出する."""
-    residuals = y - (a_hat * x_centered + b_hat)
-    if np.std(residuals) < 1e-6:
-        return (np.nan, np.nan), (np.nan, np.nan)
-
-    yearly_kdes, overall_std = build_yearly_kdes(x_centered, residuals)
-    if not yearly_kdes:
-        return (np.nan, np.nan), (np.nan, np.nan)
-
-    rng = np.random.default_rng(seed)
-    y_fitted = a_hat * x_centered + b_hat
-    n = len(y)
-
-    a_samples = []
-    b_samples = []
-
-    for _ in range(n_boot):
-        boot_res = rng.choice(residuals, size=n, replace=True)
-        y_boot = y_fitted + boot_res
-
-        def nll_boot(params):
-            a, b = params
-            res_b = y_boot - (a * x_centered + b)
-            return -float(np.sum(eval_pooled_yearly_pdf(res_b, yearly_kdes, overall_std)))
-
-        res = minimize(nll_boot, [a_hat, b_hat], method="L-BFGS-B")
-        if res.success:
-            a_samples.append(res.x[0])
-            b_samples.append(res.x[1])
-
-    if len(a_samples) < 10:
-        return (np.nan, np.nan), (np.nan, np.nan)
-
-    low_q = 100.0 * (alpha / 2.0)
-    high_q = 100.0 * (1.0 - alpha / 2.0)
-    ci_a = (float(np.percentile(a_samples, low_q)), float(np.percentile(a_samples, high_q)))
-    ci_b = (float(np.percentile(b_samples, low_q)), float(np.percentile(b_samples, high_q)))
-    return ci_a, ci_b
 
 
 def run_mle_and_aic_yearly_pooled(
-    df: pd.DataFrame, max_iter: int = DEFAULT_MAX_ITER, tolerance: float = DEFAULT_TOLERANCE
+    df: pd.DataFrame,
+    max_iter: int = DEFAULT_MAX_ITER,
+    tolerance: Optional[float] = None,
+    #tolerance: float = DEFAULT_TOLERANCE,
 ) -> tuple:
     """環境省（図 5）準拠：年度別残差分布の合成による反復最尤推定と AIC 判定.
 
@@ -688,6 +637,10 @@ def run_mle_and_aic_yearly_pooled(
 
     # 初期値（OLS）
     a_current, b_current = np.polyfit(x_centered, y, 1)
+
+    # tolerance が未指定なら自動推定
+    if tolerance is None:
+        tolerance = estimate_tolerance_yearly(a_current, b_current, x_centered, y)
 
     a1, b1, ll1, converged_status, final_iter = _iterative_mle(
         x_centered,
@@ -1159,7 +1112,7 @@ def run_analysis_for_file(
     print(f"\n--- 最終結果（テーブル形式）  {filename} ---")
     print(df_results.to_string(index=False))
 
-    result_path = os.path.join(output_dir, f"{filename}_2025_moe.csv")
+    result_path = os.path.join(output_dir, f"{filename}_2025_moe_e1.csv")
     df_results.to_csv(result_path, index=False, encoding=CSV_ENCODING)
     return df_results
 
