@@ -25,7 +25,7 @@ from scipy.interpolate import interp1d
 from tqdm import tqdm  
 import json
 
-from analysis.fft_kde_common_engine import prepare_fft_kde_lookup, fast_kde_log_likelihood, log_prior_standard
+from PY_MOE_KDE_AIC.PY_pops_moe_analysis_plus.analysis.fft_kde_common_engine import prepare_fft_kde_lookup, fast_kde_log_likelihood, log_prior_standard
 
 def log_posterior(params, x, y, lookup):
     lp = log_prior_standard(params)
