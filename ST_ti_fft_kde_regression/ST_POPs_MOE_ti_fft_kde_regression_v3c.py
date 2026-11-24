@@ -130,7 +130,7 @@ with st.sidebar:
         df_all["detection_limit"] = df_all["detection_limit"].apply(clean_value_user)
 
         is_nondetect = df_all["concentration"] <= df_all["detection_limit"]
-        substitute_value = df_all["detection_limit"] / np.sqrt(2)
+        substitute_value = df_all["detection_limit"] / 2.0     #np.sqrt(2)
         df_all["concentration_sub"] = df_all["concentration"].copy()
         df_all.loc[is_nondetect, "concentration_sub"] = substitute_value[is_nondetect]
         df_all["log_conc"] = np.log10(df_all["concentration_sub"])
