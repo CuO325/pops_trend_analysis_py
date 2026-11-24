@@ -137,7 +137,7 @@ This tool provides an interactive Streamlit GUI for analyzing environmental moni
 
 #### Key Features
 
-1. **Data Cleaning**: Automatic non-detect substitution using $DL/\sqrt{2}$ and $\log_{10}$ transformation.
+1. **Data Cleaning**: Automatic non-detect substitution using $DL/2$ and $\log_{10}$ transformation.
 2. **Three Regression Methods**: OLS, MLE (MOE-based), and FFT-KDE Bayesian Regression.
 3. **Model Evidence (TI)**: Marginal likelihood calculation using Thermodynamic Integration.
 4. **Automated Reports**: Generates full HTML summary reports per substance.
