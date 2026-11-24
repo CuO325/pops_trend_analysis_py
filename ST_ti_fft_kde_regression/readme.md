@@ -27,7 +27,7 @@
   * **熱力学積分 (TI: Thermodynamic Integration)**: 周辺尤度（モデル証拠）の算出による客観的なモデル選択。
 * 📝 **可視化と自動レポート生成**
   * 解析結果をひとまとめにした **HTML レポート** を自動生成。
-  * 傾き（$a$）や切片（$b$）の後験分布（ヒストグラム、Corner plot、Joint posterior plot）を描画・保存可能。
+  * 傾き（ $a$ ）や切片（ $b$ ）の後験分布（ヒストグラム、Corner plot、Joint posterior plot）を描画・保存可能。
 
 ---
 
