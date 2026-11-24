@@ -29,7 +29,7 @@ pops_trend_analysis_py/
 ├── PY_Hierarchical_numpyro/     # 階層ベイズモデル (NumPyro版)　地点別の傾向分析
 ├── PY_MOE_KDE_AIC/              # MOE / KDE-AIC 比較解析　（環境省の黒本記載の方法です）
 │   └── kde_mle                  # 💡**環境省法　更新しました v1_1e**
-├── PY_pops_moe_analysis_plus/   # 環境省法（v1_1c相当) + KDEベイズ回帰 (NumPyro版　速いです)
+│   └── PY_pops_moe_analysis_plus/   # 環境省法（v1_1c相当) + KDEベイズ回帰 (NumPyro版　速いです)
 ├── emcee/                       # emcee版(参照実装）
 │   └── PY_emcee_kde_regression/ # KDEベイズ回帰 (emcee版　遅いです)
 │   └── PY_Hierarchical_emcee/   # 階層ベイズモデル (emcee版)　全体に減少傾向があるとの仮定での地点別の傾向分析
