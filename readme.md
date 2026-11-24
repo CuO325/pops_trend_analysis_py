@@ -26,12 +26,13 @@ Bayes Factor / 階層ベイズ / SARIMA
 ### 📁 全体構成
 ```text
 pops_trend_analysis_py/
-├── PY_emcee_kde_regression/     # KDEベイズ回帰 (emcee版　遅いです)
-├── PY_Hierarchical_emcee/       # 階層ベイズモデル (emcee版)　地点別の傾向分析
 ├── PY_Hierarchical_numpyro/     # 階層ベイズモデル (NumPyro版)　地点別の傾向分析
 ├── PY_MOE_KDE_AIC/              # MOE / KDE-AIC 比較解析　（環境省の黒本記載の方法です）
 │   └── kde_mle                  # 💡**環境省法　更新しました**
 ├── PY_pops_moe_analysis_plus/   # KDEベイズ回帰 (NumPyro版　速いです)
+├── emcee/                       # emcee版(参照実装）
+│   └── PY_emcee_kde_regression/ # KDEベイズ回帰 (emcee版　遅いです)
+│   └── PY_Hierarchical_emcee/   # 階層ベイズモデル (emcee版)　地点別の傾向分析
 │ 
 ├── ST_ti_fft_kde_regression/    # FFTを用いたKDE高速化モデル　(ブラウザ上で動作。TIも選択できます。スクリプトが最新です。)
 ├── ST_BREAK_POINTs/             # 変化点分析 (Breakpoint)　高頻度測定での季節変動を除外した経年変動を折れ線で解析します。
@@ -90,10 +91,8 @@ pops_trend_analysis_py/
 
 
 ### 参照実装（Reference implementation）
-`PY_ti_fft_kde_regression`などは、手法の検証の目的で保存されています。
+`esmee`は、手法の検証の目的で保存されています。
 - emceeを用いたオリジナル実装　(初期段階で作成されました。遅いです)
-- 手法検証および比較用
-- 目的に応じたバッチ処理用
 
 ---
 ## ✨ 主な機能と特徴
