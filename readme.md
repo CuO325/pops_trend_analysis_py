@@ -28,11 +28,11 @@ Bayes Factor / 階層ベイズ / SARIMA
 pops_trend_analysis_py/
 ├── PY_Hierarchical_numpyro/     # 階層ベイズモデル (NumPyro版)　地点別の傾向分析
 ├── PY_MOE_KDE_AIC/              # MOE / KDE-AIC 比較解析　（環境省の黒本記載の方法です）
-│   └── kde_mle                  # 💡**環境省法　更新しました**
-├── PY_pops_moe_analysis_plus/   # KDEベイズ回帰 (NumPyro版　速いです)
+│   └── kde_mle                  # 💡**環境省法　更新しました v1_1e**
+├── PY_pops_moe_analysis_plus/   # 環境省法（v1_1c相当) + KDEベイズ回帰 (NumPyro版　速いです)
 ├── emcee/                       # emcee版(参照実装）
 │   └── PY_emcee_kde_regression/ # KDEベイズ回帰 (emcee版　遅いです)
-│   └── PY_Hierarchical_emcee/   # 階層ベイズモデル (emcee版)　地点別の傾向分析
+│   └── PY_Hierarchical_emcee/   # 階層ベイズモデル (emcee版)　全体に減少傾向があるとの仮定での地点別の傾向分析
 │ 
 ├── ST_ti_fft_kde_regression/    # FFTを用いたKDE高速化モデル　(ブラウザ上で動作。TIも選択できます。スクリプトが最新です。)
 ├── ST_BREAK_POINTs/             # 変化点分析 (Breakpoint)　高頻度測定での季節変動を除外した経年変動を折れ線で解析します。
@@ -111,12 +111,10 @@ pops_trend_analysis_py/
 
 | ディレクトリ名 | 概要 | 主な手法・ライブラリ |
 | :--- | :--- | :--- |
-| **[PY_Hierarchical_emcee](./PY_emcee_kde_regression/)** | 階層ベイズモデルによるトレンド分析 （遅いです）| `emcee` |
 | **[PY_Hierarchical_numpyro](./PY_Hierarchical_numpyro/)** | 高速な階層ベイズモデリング （💡推奨版）（ST_版はありません）| `NumPyro`, `JAX` |
-| **[PY_MOE_KDE_AIC/kde_mle](./PY_MOE_KDE_AIC/kde_mle/)** | 環境省手法：KDE、AICモデル選択、最尤推定、ブートストラップ （💡推奨版）(信頼区間付き、AICcの追加、不検出=DL/2)| KDE, AIC, MLE |
-| **[PY_emcee_kde_regression](./PY_emcee_kde_regression)** | `emcee` と KDE を組み合わせた回帰分析 （遅いです）| `emcee`, KDE |
-| **[PY_pops_moe_analysis_plus](./PY_pops_moe_analysis_plus/)** | 環境省手法にベイズ分析（MCMC）を追加　（💡準-推奨版） | ベイズ統計, MCMC |
-| **[PY_ti_fft_kde_regression](./PY_ti_fft_kde_regression/)** | 高速フーリエ変換（FFT）と KDE を組み合わせた時系列回帰分析 | FFT, KDE |
+| **[PY_MOE_KDE_AIC/kde_mle](./PY_MOE_KDE_AIC/kde_mle/)** | 環境省手法：(v1_1d) KDE、AICモデル選択、最尤推定、ブートストラップ （💡推奨版）(信頼区間付き、AICcの追加、不検出=DL/2)| KDE, AIC, MLE |
+| **[PY_pops_moe_analysis_plus](./PY_pops_moe_analysis_plus/)** | 環境省手法（v1_1c, 最新ではありません）＋ベイズ分析（MCMC）　（💡バッチ処理用、準-推奨版） | ベイズ統計, MCMC |
+| **[PY_ti_fft_kde_regression](./PY_ti_fft_kde_regression/)** | FFT・KDEを用いた時系列回帰分析アプリ、TI実装 （ST版を推奨）| FFT, KDE |
 
 ### 🎈 Streamlit アプリケーション (`ST_`)
 
