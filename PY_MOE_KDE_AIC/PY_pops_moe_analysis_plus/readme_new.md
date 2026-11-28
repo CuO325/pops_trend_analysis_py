@@ -41,7 +41,7 @@ pip install numpy pandas matplotlib seaborn scipy statsmodels scikit-learn emcee
 
 ---
 
-## 使い方＿ｔ
+## 使い方
 
 1. `data`フォルダに対象CSVデータを配置します。CSVは以下の列が含まれている必要があります：
    - `substance`（物質名）
