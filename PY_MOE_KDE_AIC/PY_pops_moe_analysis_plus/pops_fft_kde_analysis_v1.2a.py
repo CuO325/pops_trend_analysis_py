@@ -42,7 +42,7 @@ from analysis.fft_kde_common_engine3 import (
 VERSION = "script: pops_fft_kde_analysis_v1.2a.py (refactored from v1.1b), 2026 (H.S.)"
 
 #DEFAULT_FILENAMES = ["大気温暖期", "大気寒冷期", "水質", "底質", "生物"]
-DEFAULT_FILENAMES = ["pfos大気温暖期"]
+DEFAULT_FILENAMES = ["PCBwater"]
 
 DATA_DIR = "data"
 PLOT_DIR = "outputs/plots_fft_kde"
@@ -66,12 +66,12 @@ class BayesConfig:
     grid_size_lookup: int = 1024          # FFT-KDE ルックアップのグリッド数
 
     # MCMC (事後分布推定) 設定
-    mcmc_walkers: int = 16
+    mcmc_walkers: int = 32                  # 16 → 32 に増やす
     mcmc_steps: int = 2000
     mcmc_chunk: int = 100
     mcmc_burn_frac: float = 0.5
-    mcmc_ci_width_threshold: float = 0.03
-    mcmc_stable_rounds: int = 1
+    mcmc_ci_width_threshold: float = 0.01   # 0.03 → 0.01 に厳しくする
+    mcmc_stable_rounds: int = 5             # 1 → 5 に増やす（最低 500 ステップは回す）
     mcmc_seed: Optional[int] = None
 
     # 熱力学積分 (TI) 設定
@@ -337,13 +337,38 @@ def log_prior_informative(params, data_scale=None):
     return -(a ** 2) / (2 * a_sd ** 2) - (b ** 2) / (2 * b_sd ** 2)
 
 
+def log_prior_const(params, data_scale=None):
+    """定数モデル (a=0 固定) 用の 1次元対数事前分布"""
+    b = params[0]
+    if not (-100 < b < 100):
+        return -np.inf
+    if data_scale is None:
+        b_sd = 2.0
+    else:
+        y_std = data_scale.get("y_std", 1.0)
+        b_sd = max(0.1, y_std * 2.0)
+    return -(b ** 2) / (2 * b_sd ** 2)
+
+
+
 def tempered_log_posterior(params, beta, x_centered, y, lookup, data_scale=None):
-    """log prior + β * logL（β=1 が通常の事後分布）"""
+    """log prior + β * logL（線形モデル: 2次元 [a, b]）"""
     lp = log_prior_informative(params, data_scale=data_scale)
     if not np.isfinite(lp):
         return -np.inf
     a, b = params
     return lp + beta * fast_kde_log_likelihood_from_residuals(a, b, x_centered, y, lookup)
+
+
+def tempered_log_posterior_const(params, beta, x_centered, y, lookup, data_scale=None):
+    """log prior + β * logL（定数モデル: 1次元 [b], a=0 固定）"""
+    lp = log_prior_const(params, data_scale=data_scale)
+    if not np.isfinite(lp):
+        return -np.inf
+    b = params[0]
+    return lp + beta * fast_kde_log_likelihood_from_residuals(0.0, b, x_centered, y, lookup)
+
+
 
 def log_posterior_fast(params, x_centered, y, lookup, data_scale=None):
     return tempered_log_posterior(params, 1.0, x_centered, y, lookup, data_scale)
@@ -446,11 +471,12 @@ def run_bayes_kde_auto_stop_fast(
         "p_neg_slope": float(np.mean(a_samps < 0)),
         "steps_completed": total_steps,
         "stopped_early": stable_count >= cfg.mcmc_stable_rounds,
-        "Rhat": compute_Rhat(np.transpose(sampler.get_chain(), axes=(1, 0, 2))),
+        #"Rhat": compute_Rhat(np.transpose(sampler.get_chain(), axes=(1, 0, 2))),
+        # 改善案：バーンイン破棄後のサンプルで R-hat を計算する（TI側と同じ基準）
+        "Rhat": compute_Rhat(np.transpose(sampler.get_chain(discard=int(cfg.mcmc_burn_frac * total_steps)), axes=(1, 0, 2))),
         "lookup": lookup,
         "mode_loo": bool(cfg.mode_loo),
     }
-
 
 def compute_log_marginal_TL(
     df: pd.DataFrame,
@@ -462,15 +488,16 @@ def compute_log_marginal_TL(
     """熱力学積分で周辺尤度 logZ を推定する（model: 'linear' | 'constant'）"""
     _, x_centered, y = extract_xy(df)
 
-    # 既存の _mle_for_model_old（model, x, y を受け取る版）と同じ仕様で初期残差を作成
     if model == "linear":
         res = minimize(neg_log_likelihood_linear, [-0.01, np.mean(y)],
                        args=(x_centered, y), method="L-BFGS-B")
         a_mle, b_mle = res.x
+        init_center = np.array([a_mle, b_mle])
     else:
         res0 = minimize(neg_log_likelihood_const, [np.mean(y)],
                         args=(x_centered, y), method="L-BFGS-B")
         a_mle, b_mle = 0.0, res0.x[0]
+        init_center = np.array([b_mle])  # ◀ 定数モデルは 1次元 [b]
 
     residuals = y - (a_mle * x_centered + b_mle)
     lookup = prepare_fft_kde_lookup(
@@ -483,20 +510,21 @@ def compute_log_marginal_TL(
     betas = np.unique(np.sort(cfg.get_betas() if betas is None else betas))
     if verbose:
         print(f"\n[TI] model={model} (mode_loo={cfg.mode_loo})")
-        print(" betas =", np.round(betas, 3))
+        print("  betas =", np.round(betas, 3))
 
     data_scale = {
         "x_range": float(x_centered.max() - x_centered.min()),
         "y_std": float(np.nanstd(y)),
     }
-    init_center = np.array([a_mle, b_mle])
 
     E_logL = []
+    last_rhat = np.array([np.nan, np.nan] if model == "linear" else [np.nan])
     for beta in betas:
         if verbose:
-            print(f" β={beta:.3f} ... ", end="")
-        E, _, _ = estimate_E_loglike_for_beta(
+            print(f"  β={beta:.3f} ... ", end="")
+        E, _, sampler = estimate_E_loglike_for_beta(
             beta, x_centered, y, lookup,
+            model=model,  # ◀ model を渡す
             n_walkers=cfg.ti_walkers,
             n_steps=cfg.ti_steps,
             burn_frac=cfg.ti_burn_frac,
@@ -507,6 +535,11 @@ def compute_log_marginal_TL(
             print(f"E[logL]={E:.3f}")
         E_logL.append(E)
 
+        # バーンイン後のチェーンから R-hat を計算
+        burn = int(cfg.ti_steps * cfg.ti_burn_frac)
+        chain_3d = np.transpose(sampler.get_chain(discard=burn), axes=(1, 0, 2))
+        last_rhat = compute_Rhat(chain_3d)
+
     return {
         "model": model,
         "betas": betas,
@@ -516,7 +549,9 @@ def compute_log_marginal_TL(
         "b_mle": b_mle,
         "lookup": lookup,
         "mode_loo": bool(cfg.mode_loo),
+        "Rhat": last_rhat,  # ◀ linear なら [rhat_a, rhat_b], constant なら [rhat_b]
     }
+
 
 
 def compare_models_logZ(res1, res0, prior_ratio=1.0):
@@ -565,28 +600,40 @@ def default_betas():
         np.linspace(0.9, 1.0, 21),
     ])
 
-
-
 def estimate_E_loglike_for_beta(
-    beta, x_centered, y, lookup, n_walkers=32, n_steps=2000, burn_frac=0.5,
+    beta, x_centered, y, lookup, model="linear", n_walkers=32, n_steps=2000, burn_frac=0.5,
     init_center=None, data_scale=None, init_jitter=1e-5, show_progress=False,
 ):
     """温度 β での MCMC を回し E_β[logL] を推定する"""
-    ndim = 2
-    if init_center is None:
-        init_center = np.array([0.0, np.mean(y)])
-    initial_pos = init_center + init_jitter * np.random.default_rng().normal(size=(n_walkers, ndim))
-    def _logprob(theta):
-        return tempered_log_posterior(theta, beta, x_centered, y, lookup, data_scale=data_scale)
+    if model == "linear":
+        ndim = 2
+        if init_center is None:
+            init_center = np.array([0.0, np.mean(y)])
+        def _logprob(theta):
+            return tempered_log_posterior(theta, beta, x_centered, y, lookup, data_scale=data_scale)
+    else:
+        ndim = 1
+        if init_center is None:
+            init_center = np.array([np.mean(y)])
+        def _logprob(theta):
+            return tempered_log_posterior_const(theta, beta, x_centered, y, lookup, data_scale=data_scale)
 
+    initial_pos = init_center + init_jitter * np.random.default_rng().normal(size=(n_walkers, ndim))
     sampler = emcee.EnsembleSampler(n_walkers, ndim, _logprob)
     sampler.run_mcmc(initial_pos, n_steps, progress=show_progress)
     chain = sampler.get_chain(discard=int(n_steps * burn_frac), flat=True)
 
     # TI のため tempered ではない logL で評価
-    ll_vals = [fast_kde_log_likelihood_from_residuals(th[0], th[1], x_centered, y, lookup)
-               for th in chain]
+    if model == "linear":
+        ll_vals = [fast_kde_log_likelihood_from_residuals(th[0], th[1], x_centered, y, lookup)
+                   for th in chain]
+    else:
+        ll_vals = [fast_kde_log_likelihood_from_residuals(0.0, th[0], x_centered, y, lookup)
+                   for th in chain]
+
     return np.mean(ll_vals), chain, sampler
+
+
 
 
 def _mle_for_model(x_c, y, model="linear"):
@@ -734,6 +781,10 @@ def analyze_bayes(df, x_centered, y, a_mle, b_mle, run_ti, cfg: BayesConfig = DE
         "bf_text": "N/A",
         "mode_loo": bool(cfg.mode_loo),
         "ti_trace": None,  # ← 追加
+        # ▼ 追加: TI の R-hat 初期値
+        "ti_rhat_a_lin": np.nan,
+        "ti_rhat_b_lin": np.nan,
+        "ti_rhat_b_const": np.nan,
     }
     try:
         print(f"\n--- [設定] (mode_loo={cfg.mode_loo}, grid={cfg.grid_size_lookup}) ---")
@@ -767,6 +818,14 @@ def analyze_bayes(df, x_centered, y, a_mle, b_mle, run_ti, cfg: BayesConfig = DE
                 cmp = compare_models_logZ(res_lin, res_const)
                 out["cmp"] = cmp
                 out["bf_text"] = interpret_bayes_factor(BF=cmp["BF"])["interpretation"]
+
+                # ▼ 追加: TI の R-hat を格納
+                rhat_lin = res_lin.get("Rhat", [np.nan, np.nan])
+                rhat_const = res_const.get("Rhat", [np.nan])
+                out["ti_rhat_a_lin"] = float(rhat_lin[0])
+                out["ti_rhat_b_lin"] = float(rhat_lin[1])
+                out["ti_rhat_b_const"] = float(rhat_const[0]) # ◀ [1] から [0] に変更
+
                 # ↓ TI の β スケジュールと E[logL] の推移を保存
                 out["ti_trace"] = {
                     "linear": {
@@ -990,6 +1049,10 @@ def build_analysis_report(substance, filename, df, split_year, mle, bayes, boot,
                 "stopped_early": bayes.get("stopped_early"),      # ◀ 追記
                 "rhat_a": bayes.get("rhat_a"),                    # ◀ 追記
                 "rhat_b": bayes.get("rhat_b"),                    # ◀ 追記
+                # ▼ 追加
+                "ti_rhat_a_lin": bayes.get("ti_rhat_a_lin"),
+                "ti_rhat_b_lin": bayes.get("ti_rhat_b_lin"),
+                "ti_rhat_b_const": bayes.get("ti_rhat_b_const"),
                 "mode_loo": bayes.get("mode_loo"),   # ← 追加
                 "ti_trace": bayes.get("ti_trace"),   # ← 追加
             },
@@ -1069,6 +1132,10 @@ def _html_substance_section(r, image_path, run_ti):
               _row("対数ベイズ因子 logBF", fmt(bayes["logBF"])),
               #_row("ベイズ因子 BF", fmt(bayes["BF"])),
               _row("ベイズ因子 BF", fmt(bayes["BF"], ".3e")),  # ◀ 指数表記に変更して桁溢れ防止
+              # ▼ 追加: TI 側の収束診断 R-hat 表示
+              _row("TI 収束診断 R-hat (linear: a, b / const: b)",
+                   f"linear=[{fmt(bayes.get('ti_rhat_a_lin'), '.4f')}, {fmt(bayes.get('ti_rhat_b_lin'), '.4f')}], "
+                   f"const_b={fmt(bayes.get('ti_rhat_b_const'), '.4f')}"),
               _row("傾向判定", bayes["bayes_trend"]),
               _row("BF評価", bayes["BF評価"])]
     else:
