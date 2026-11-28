@@ -80,9 +80,10 @@ pip install numpy pandas matplotlib seaborn scipy statsmodels scikit-learn emcee
   * **`bw_factor`**（デフォルト: `1.0`）: カーネル密度推定のバンド幅倍率です。
   * **`grid_size_lookup`**（デフォルト: `1024`）: FFT-KDE ルックアップテーブルのグリッド分割数です（大きいほど高精度、小さいほど高速）。
 * **MCMC（事後分布推定）設定**
-  * **`mcmc_walkers`**（デフォルト: `16`） / **`mcmc_steps`**（デフォルト: `2000`）: ウォーカー数と最大ステップ数。
+  * **`mcmc_walkers`**（デフォルト: `32`） / **`mcmc_steps`**（デフォルト: `2000`）: ウォーカー数と最大ステップ数。
   * **`mcmc_burn_frac`**（デフォルト: `0.5`）: バーンインとして破棄する前半ステップの割合。
-  * **`mcmc_ci_width_threshold`**（デフォルト: `0.03`）: 傾き `a` の 95% 信用区間幅がこの値未満かつ符号が確定した場合に早期終了（Auto-Stop）します。
+  * **`mcmc_ci_width_threshold`**（デフォルト: `0.01`）: 傾き `a` の 95% 信用区間幅がこの値未満かつ符号が確定した場合に早期終了（Auto-Stop）します。
+  * **`mcmc_stable_rounds`**: int = 5             # 1 → 5 に増やす（最低500ステップ保証）
   * **`mcmc_seed`**（デフォルト: `None`）: 乱数シード（再現性を確保したい場合は整数を指定）。
 * **熱力学積分（TI）設定・βスケジュール**
   * **`ti_walkers`**（デフォルト: `32`） / **`ti_steps`**（デフォルト: `2000`） / **`ti_burn_frac`**（デフォルト: `0.5`）: 各温度 $\beta$ における MCMC サンプリング条件。
